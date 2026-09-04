@@ -3,11 +3,20 @@
 /**
  * The stage renderer.
  *
- * One quad, two plate textures, and a dissolve that breaks the image into
+ * One quad, four plate textures, and a dissolve that breaks the image into
  * printing dots on its way from one plate to the next. The dot pass is the
  * signature of the whole site: at rest a plate is just a painting, but while it
  * is handing over it shatters into halftone against the flat ground colour, the
  * way a duotone separation looks when the screen is too coarse.
+ *
+ * Four textures rather than two because each plate is a frame sequence and is
+ * held as a *pair* - the frame before the playhead and the frame after it -
+ * blended by however far between them the scroll currently sits. Frames sit
+ * about sixty pixels of scroll apart, close enough that the blend reads as
+ * motion rather than as a double exposure, and it means the plates move
+ * continuously instead of stepping from one frame to the next. It also means a
+ * half-downloaded sequence is smooth rather than jerky: the pair simply spans a
+ * wider gap until the frames between it arrive.
  *
  * Written against GLSL ES 1.00 so a WebGL1 context is enough; WebGL2 is taken
  * when offered only because it is the better-tested path in current browsers.
@@ -27,8 +36,12 @@ precision highp float;
 
 varying vec2 vUv;
 
-uniform sampler2D uA;
-uniform sampler2D uB;
+uniform sampler2D uA0;     // plate A, frame at or before the playhead
+uniform sampler2D uA1;     // plate A, frame after it
+uniform sampler2D uB0;
+uniform sampler2D uB1;
+uniform float uFa;         // how far between A's two frames the scroll sits
+uniform float uFb;
 uniform vec2  uRes;        // drawing buffer size, px
 uniform vec2  uAspectA;    // cover-fit scale for plate A
 uniform vec2  uAspectB;
@@ -64,29 +77,40 @@ vec2 cover(vec2 uv, vec2 aspect, float zoom, vec2 pan) {
   return (uv - 0.5) / (aspect * zoom) + 0.5 + pan;
 }
 
+/* Each plate is sampled from its two frames at once. Doing the blend here
+   rather than by uploading pre-mixed pixels is what keeps the motion
+   continuous no matter how coarsely the sequence has downloaded so far. */
+vec3 plateA(vec2 uv) {
+  vec2 c = clamp(uv, 0.001, 0.999);
+  return mix(texture2D(uA0, c).rgb, texture2D(uA1, c).rgb, uFa);
+}
+
+vec3 plateB(vec2 uv) {
+  vec2 c = clamp(uv, 0.001, 0.999);
+  return mix(texture2D(uB0, c).rgb, texture2D(uB1, c).rgb, uFb);
+}
+
 void main() {
   vec2 uvA = cover(vUv, uAspectA, uZoom, uPan);
   vec2 uvB = cover(vUv, uAspectB, uZoom, uPan * 1.14);
 
-  /* ---- bridge -------------------------------------------------------
-     A filmed transition already contains the whole handover, so the stage
-     gets out of the way: one texture, cover-fitted, no blend and no halftone.
-     Anything else here would be a second effect fighting the first. */
   if (uTrans > 2.5) {
-    /* A plain crossfade, used only to ease a bridge clip in and out against
-       the plates on either side. A bridge is generated separately from the
-       plate clips, so its first and last frames rarely match theirs exactly;
-       cutting straight to one shows that mismatch as a jump. */
-    vec3 pa = texture2D(uA, clamp(uvA, 0.001, 0.999)).rgb;
-    vec3 pb = texture2D(uB, clamp(uvB, 0.001, 0.999)).rgb;
-    vec3 mixed = mix(pa, pb, clamp(uMix, 0.0, 1.0));
+    /* A plain crossfade, used only to ease a bridge sequence in and out
+       against the plates on either side. A bridge is generated separately from
+       the plate clips, so its first and last frames rarely match theirs
+       exactly; cutting straight to one shows that mismatch as a jump. */
+    vec3 mixed = mix(plateA(uvA), plateB(uvB), clamp(uMix, 0.0, 1.0));
     float gx = hash(vUv * uRes + fract(uTime) * 91.0) - 0.5;
     gl_FragColor = vec4(mixed + gx * uGrain, 1.0);
     return;
   }
 
+  /* ---- bridge -------------------------------------------------------
+     A filmed transition already contains the whole handover, so the stage
+     gets out of the way: one plate, cover-fitted, no blend and no halftone.
+     Anything else here would be a second effect fighting the first. */
   if (uTrans > 1.5 && uTrans < 2.5) {
-    vec3 cb = texture2D(uA, clamp(uvA, 0.001, 0.999)).rgb;
+    vec3 cb = plateA(uvA);
     float gb = hash(vUv * uRes + fract(uTime) * 91.0) - 0.5;
     gl_FragColor = vec4(cb + gb * uGrain, 1.0);
     return;
@@ -113,10 +137,8 @@ void main() {
     /* Counter-scale: the outgoing plate rushes at the viewer as it is pushed
        out, the incoming one blooms from the point. This is what separates a
        portal from a circular wipe. */
-    vec2 sa = (uvA - 0.5) * (1.0 - k * 0.92) + 0.5;
-    vec2 sb = (uvB - 0.5) * (0.25 + k * 0.75) + 0.5;
-    vec3 ca = texture2D(uA, clamp(sa, 0.001, 0.999)).rgb;
-    vec3 cb = texture2D(uB, clamp(sb, 0.001, 0.999)).rgb;
+    vec3 ca = plateA((uvA - 0.5) * (1.0 - k * 0.92) + 0.5);
+    vec3 cb = plateB((uvB - 0.5) * (0.25 + k * 0.75) + 0.5);
 
     vec3 outCol = mix(ca, cb, k);
     float g0 = hash(vUv * uRes + fract(uTime) * 91.0) - 0.5;
@@ -124,8 +146,8 @@ void main() {
     return;
   }
 
-  vec3 a = texture2D(uA, clamp(uvA, 0.001, 0.999)).rgb;
-  vec3 b = texture2D(uB, clamp(uvB, 0.001, 0.999)).rgb;
+  vec3 a = plateA(uvA);
+  vec3 b = plateB(uvB);
 
   /* The wipe runs diagonally and is roughed up by noise, so the two plates
      never trade places along a straight line. */
@@ -177,29 +199,27 @@ export type StageState = {
   zoom: number;
   pan: [number, number];
   cell: number;
-  /** 0 = halftone dissolve, 1 = iris. */
+  /** 0 = halftone dissolve, 1 = iris, 2 = bridge, 3 = crossfade. */
   trans: number;
 };
 
 type Slot = {
-  tex: WebGLTexture;
+  /** The frame at or before the playhead, and the one after it. */
+  a: WebGLTexture;
+  b: WebGLTexture;
+  /** Which frames those hold. `ib` of -1 means there is nothing to blend to. */
+  ia: number;
+  ib: number;
+  /** How far between them the playhead sits, 0-1. */
+  frac: number;
   aspect: [number, number];
   ground: [number, number, number];
-  /** Set when this slot is being driven by a clip rather than a still. */
-  video: HTMLVideoElement | null;
-  /** A new video frame is waiting to be pushed to the texture. */
-  pending: boolean;
 };
 
-/** `requestVideoFrameCallback` is not in every lib.dom yet. */
-type FrameVideo = HTMLVideoElement & {
-  requestVideoFrameCallback?: (cb: () => void) => number;
+const sizeOf = (source: TexImageSource): [number, number] => {
+  const img = source as HTMLImageElement;
+  return [img.naturalWidth || img.width, img.naturalHeight || img.height];
 };
-
-const sizeOf = (source: TexImageSource): [number, number] =>
-  "videoWidth" in source
-    ? [(source as HTMLVideoElement).videoWidth, (source as HTMLVideoElement).videoHeight]
-    : [(source as HTMLImageElement).width, (source as HTMLImageElement).height];
 
 function compile(gl: WebGLRenderingContext, type: number, src: string) {
   const sh = gl.createShader(type);
@@ -241,8 +261,8 @@ export function createStage(canvas: HTMLCanvasElement) {
 
   const u = (name: string) => gl.getUniformLocation(prog, name);
   const U = {
-    A: u("uA"),
-    B: u("uB"),
+    fa: u("uFa"),
+    fb: u("uFb"),
     res: u("uRes"),
     aspectA: u("uAspectA"),
     aspectB: u("uAspectB"),
@@ -256,8 +276,10 @@ export function createStage(canvas: HTMLCanvasElement) {
     time: u("uTime"),
     trans: u("uTrans"),
   };
-  gl.uniform1i(U.A, 0);
-  gl.uniform1i(U.B, 1);
+  gl.uniform1i(u("uA0"), 0);
+  gl.uniform1i(u("uA1"), 1);
+  gl.uniform1i(u("uB0"), 2);
+  gl.uniform1i(u("uB1"), 3);
 
   const slots: Slot[] = [];
   let lost = false;
@@ -268,16 +290,7 @@ export function createStage(canvas: HTMLCanvasElement) {
   };
   canvas.addEventListener("webglcontextlost", onLost);
 
-  /** Pushes the current contents of `source` into a slot's texture. */
-  function write(slot: Slot, source: TexImageSource) {
-    gl!.bindTexture(gl!.TEXTURE_2D, slot.tex);
-    gl!.pixelStorei(gl!.UNPACK_FLIP_Y_WEBGL, 1);
-    gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGB, gl!.RGB, gl!.UNSIGNED_BYTE, source);
-    const [w, h] = sizeOf(source);
-    if (w && h) slot.aspect = [w / h, 1];
-  }
-
-  function upload(source: TexImageSource, groundHex: string): Slot {
+  function newTexture(fill: [number, number, number]) {
     const tex = gl!.createTexture()!;
     gl!.bindTexture(gl!.TEXTURE_2D, tex);
     // NPOT-safe: clamp + linear, no mips
@@ -285,71 +298,102 @@ export function createStage(canvas: HTMLCanvasElement) {
     gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_T, gl!.CLAMP_TO_EDGE);
     gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MIN_FILTER, gl!.LINEAR);
     gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MAG_FILTER, gl!.LINEAR);
-    const slot: Slot = { tex, aspect: [1, 1], ground: hexToRgb(groundHex), video: null, pending: false };
-    write(slot, source);
-    return slot;
+    gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGB, 1, 1, 0, gl!.RGB, gl!.UNSIGNED_BYTE,
+      new Uint8Array(fill.map((c) => Math.round(c * 255))));
+    return tex;
+  }
+
+  /** Pushes an image into one of a slot's two textures. */
+  function write(slot: Slot, tex: WebGLTexture, source: TexImageSource) {
+    gl!.bindTexture(gl!.TEXTURE_2D, tex);
+    gl!.pixelStorei(gl!.UNPACK_FLIP_Y_WEBGL, 1);
+    gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGB, gl!.RGB, gl!.UNSIGNED_BYTE, source);
+    const [w, h] = sizeOf(source);
+    if (w && h) slot.aspect = [w / h, 1];
   }
 
   return {
-    /** Uploads the whole plate set once; order matches `PLATES`. */
-    setPlates(sources: { source: TexImageSource; ground: string }[]) {
-      slots.length = 0;
-      for (const s of sources) slots.push(upload(s.source, s.ground));
-    },
-
     /**
-     * Swaps a settled still for its moving version.
+     * Appends a slot and returns its index.
      *
-     * The clip drives the slot from here on. Uploads are gated on
-     * `requestVideoFrameCallback` so the texture is only rewritten when the
-     * decoder actually produces a frame - a 24fps clip on a 120Hz display
-     * would otherwise be re-uploaded five times per frame it has.
-     */
-    setMotion(index: number, video: HTMLVideoElement, onFrame?: () => void) {
-      const slot = slots[index];
-      if (!slot) return;
-      slot.video = video;
-      write(slot, video);
-      const rvfc = (video as FrameVideo).requestVideoFrameCallback;
-      if (rvfc) {
-        /* `onFrame` has to wake the host's render loop. A decoded frame that
-           nobody draws is invisible, and on a scrubbed plate the loop is
-           asleep by the time a seek lands - so without this every frame on
-           screen is one seek behind, and letting go of the wheel leaves you
-           looking at a stale one. */
-        const pump = () => {
-          slot.pending = true;
-          onFrame?.();
-          (video as FrameVideo).requestVideoFrameCallback?.(pump);
-        };
-        rvfc.call(video, pump);
-      } else {
-        // no frame callback: fall back to uploading on every render
-        slot.pending = true;
-      }
-    },
-
-    hasPlates: () => slots.length > 0,
-
-    /**
-     * Appends an empty slot and returns its index.
-     *
-     * Bridge clips are not plates - they belong to a handover rather than to a
-     * chapter - so they get their own slots past the end of the plate list
-     * rather than being squeezed into it.
+     * It opens on a single pixel of its own ground colour. An empty slot is on
+     * screen for the first few hundred milliseconds of every visit, and a flat
+     * wash of the right colour is a backdrop the copy is already designed to
+     * sit on; black would be a hole in the page.
      */
     addSlot(groundHex: string) {
-      const tex = gl!.createTexture()!;
-      gl!.bindTexture(gl!.TEXTURE_2D, tex);
-      gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_S, gl!.CLAMP_TO_EDGE);
-      gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_T, gl!.CLAMP_TO_EDGE);
-      gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MIN_FILTER, gl!.LINEAR);
-      gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MAG_FILTER, gl!.LINEAR);
-      // one black pixel until the clip decodes its first frame
-      gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGB, 1, 1, 0, gl!.RGB, gl!.UNSIGNED_BYTE,
-        new Uint8Array([0, 0, 0]));
-      slots.push({ tex, aspect: [16 / 9, 1], ground: hexToRgb(groundHex), video: null, pending: false });
+      const ground = hexToRgb(groundHex);
+      slots.push({
+        a: newTexture(ground),
+        b: newTexture(ground),
+        ia: -1,
+        ib: -1,
+        frac: 0,
+        aspect: [16 / 9, 1],
+        ground,
+      });
       return slots.length - 1;
+    },
+
+    /**
+     * Puts a single still in a slot, with nothing to blend toward.
+     *
+     * This is the painted plate: what a reduced-motion visit sees for the whole
+     * scroll, and what everyone else sees for the moment before the sequence
+     * reaches that chapter.
+     */
+    setSource(index: number, source: TexImageSource) {
+      const slot = slots[index];
+      if (!slot) return;
+      write(slot, slot.a, source);
+      slot.ia = -1;
+      slot.ib = -1;
+      slot.frac = 0;
+    },
+
+    /**
+     * Positions a slot between two frames of its sequence.
+     *
+     * Advancing by one frame costs no upload at all: the frame we were heading
+     * toward becomes the frame we are leaving, so the two textures are simply
+     * swapped and only the new leading frame is sent. That is what makes a
+     * continuous scrub affordable - one upload per frame crossed, rather than
+     * two per rendered frame.
+     */
+    setFrames(
+      index: number,
+      ia: number,
+      imgA: TexImageSource,
+      ib: number,
+      imgB: TexImageSource | null,
+      frac: number,
+    ) {
+      const slot = slots[index];
+      if (!slot) return;
+
+      if (ia !== slot.ia) {
+        if (ia === slot.ib) {
+          const t = slot.a;
+          slot.a = slot.b;
+          slot.b = t;
+          slot.ib = -1;
+        } else {
+          write(slot, slot.a, imgA);
+        }
+        slot.ia = ia;
+      }
+
+      if (imgB && ib !== ia) {
+        if (ib !== slot.ib) {
+          write(slot, slot.b, imgB);
+          slot.ib = ib;
+        }
+        slot.frac = frac;
+      } else {
+        // only one frame to go on: hold on it rather than blending toward junk
+        slot.ib = -1;
+        slot.frac = 0;
+      }
     },
 
     resize(cssW: number, cssH: number, dpr: number) {
@@ -366,16 +410,6 @@ export function createStage(canvas: HTMLCanvasElement) {
       const A = slots[Math.min(s.from, slots.length - 1)];
       const B = slots[Math.min(s.to, slots.length - 1)];
 
-      /* Only the two slots actually on screen are refreshed. Pushing nine
-         full-frame video textures per frame to show two of them is the kind of
-         cost that shows up as a warm laptop and nothing else. */
-      for (const slot of [A, B]) {
-        if (!slot.video || slot.video.readyState < 2) continue;
-        if (!slot.pending && (slot.video as FrameVideo).requestVideoFrameCallback) continue;
-        write(slot, slot.video);
-        slot.pending = false;
-      }
-
       const viewAspect = canvas.width / canvas.height;
 
       /* Cover-fit: scale the axis that would otherwise letterbox. */
@@ -383,10 +417,16 @@ export function createStage(canvas: HTMLCanvasElement) {
         texAspect > viewAspect ? [texAspect / viewAspect, 1] : [1, viewAspect / texAspect];
 
       gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, A.tex);
+      gl.bindTexture(gl.TEXTURE_2D, A.a);
       gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, B.tex);
+      gl.bindTexture(gl.TEXTURE_2D, A.ib < 0 ? A.a : A.b);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, B.a);
+      gl.activeTexture(gl.TEXTURE3);
+      gl.bindTexture(gl.TEXTURE_2D, B.ib < 0 ? B.a : B.b);
 
+      gl.uniform1f(U.fa, A.ib < 0 ? 0 : A.frac);
+      gl.uniform1f(U.fb, B.ib < 0 ? 0 : B.frac);
       gl.uniform2f(U.res, canvas.width, canvas.height);
       gl.uniform2fv(U.aspectA, fit(A.aspect[0]));
       gl.uniform2fv(U.aspectB, fit(B.aspect[0]));
@@ -405,7 +445,10 @@ export function createStage(canvas: HTMLCanvasElement) {
 
     destroy() {
       canvas.removeEventListener("webglcontextlost", onLost);
-      slots.forEach((s) => gl.deleteTexture(s.tex));
+      slots.forEach((s) => {
+        gl.deleteTexture(s.a);
+        gl.deleteTexture(s.b);
+      });
       gl.deleteBuffer(buf);
       gl.deleteProgram(prog);
     },

@@ -3,24 +3,31 @@
 import { useEffect, useRef } from "react";
 import { gsap } from "@/lib/gsap";
 import { createStage, type Stage } from "@/lib/strawberryGL";
-import { loadPlate, loadMotion } from "@/lib/strawberryPlates";
+import { loadPlate } from "@/lib/strawberryPlates";
+import {
+  coarseCount,
+  createSequence,
+  fetchOrder,
+  framePairAt,
+  loadFrame,
+  type Sequence,
+} from "@/lib/strawberrySequence";
 import { cueAt } from "@/lib/strawberryCues";
 import { subscribeStage, getStageProgress } from "@/hooks/strawberry/useStrawberryScrub";
-import { PLATES, PLATE_CUES } from "@/data/strawberry";
+import { PLATES, PLATE_CUES, FRAMES } from "@/data/strawberry";
 import { markFilmReady, resetFilm } from "@/lib/strawberryLoad";
 
 /**
  * The painted plates behind everything.
  *
  * Two loads, in order. The stills go up first and are what the stage opens on;
- * the clips arrive afterwards and take over their slots one at a time. That
- * ordering is the whole design - the site is complete and correct from the
- * first paint, and motion is something it gains, never something it waits for.
+ * the frame sequences arrive afterwards and take over their slots. That
+ * ordering is the whole design: the site is complete and correct from the first
+ * paint, and motion is something it gains rather than something it waits for.
  *
- * Rendering is on demand. A settled still is a still image, and re-rasterising
+ * Rendering is on demand. A settled plate is a still image, and re-rasterising
  * a full-viewport shader sixty times a second to show the same pixels is the
- * kind of cost that only ever surfaces as a warm laptop. The loop wakes for
- * scroll, for the length of a dissolve, and while a clip is actually playing.
+ * kind of cost that only ever surfaces as a warm laptop.
  */
 export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -41,23 +48,57 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
     }
 
     let alive = true;
-    resetFilm();
     let dirty = true;
     let dissolving = false;
-    let playing = false;
-    let state = { from: 0, to: 0, mix: 0, zoom: 1.06, pan: [0, 0] as [number, number], cell: 9, trans: 0 };
+    let state = {
+      from: 0,
+      to: 0,
+      mix: 0,
+      zoom: 1.06,
+      pan: [0, 0] as [number, number],
+      cell: 9,
+      trans: 0,
+    };
+    resetFilm();
+
+    /** Sequences, indexed to match PLATES, with the bridges after them. */
+    const seqs: (Sequence | null)[] = [];
+    const bridges = [...new Set(PLATE_CUES.map((c) => c.bridge).filter(Boolean))] as string[];
+    const bridgeSlot = new Map<string, number>();
+    /** Where the playhead wants each sequence to sit, 0-1. */
+    const at: number[] = [];
+    /**
+     * The slots actually on screen right now.
+     *
+     * A frame that lands for a chapter nobody is looking at must not be pushed
+     * to the GPU. Uploading a full-viewport texture costs the same whether or
+     * not it is visible, and doing it seven hundred times while the sequences
+     * download turns the load into a slideshow - which is exactly the
+     * stuttering the frames were meant to remove.
+     */
+    const live = new Set<number>([0]);
+
+    const dpr = () => Math.min(window.devicePixelRatio || 1, 1.5);
+    const fit = () => {
+      const r = el.getBoundingClientRect();
+      stage?.resize(r.width, r.height, dpr());
+      dirty = true;
+    };
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    fit();
 
     /**
-     * Whether this device should fetch the films at all.
+     * Whether this device should fetch the sequences at all.
      *
-     * The clips are 50-odd megabytes. On a phone that is a background effect
-     * costing more than most whole websites, so handhelds, metered connections
-     * and reduced-motion all keep the stills - which are the finished artwork
-     * and look complete on their own.
+     * Screen size is deliberately not a reason to refuse. A phone on wifi takes
+     * these perfectly well, and refusing every narrow viewport made the point of
+     * the site invisible on the device most people open it on. What matters is
+     * what the connection says about itself: an explicit data-saver request, or
+     * a link slow enough that the download would outlast the visit.
      */
     const wantsFilm = () => {
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
-      if (window.matchMedia("(max-width: 900px)").matches) return false;
       const c = (navigator as { connection?: { saveData?: boolean; effectiveType?: string } })
         .connection;
       if (c?.saveData) return false;
@@ -65,140 +106,38 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
       return true;
     };
 
-    /** Clips, indexed to match PLATES. Sparse until each one loads. */
-    const clips: (HTMLVideoElement | null)[] = PLATES.map(() => null);
-    /** Where the playhead currently wants each scrubbed clip to sit, 0-1. */
-    const scrubAt: number[] = PLATES.map(() => 0);
-
-    /* Bridge clips live in slots after the plates. They are scrubbed exactly
-       like a plate, but by the handover's mix rather than by a segment. */
-    const bridges = PLATE_CUES.filter((c) => c.bridge).map((c) => c.bridge as string);
-    const bridgeSlot = new Map<string, number>();
-    const bridgeClips: (HTMLVideoElement | null)[] = bridges.map(() => null);
-
-
-    // DPR is capped at 1.5: this shader is fragment-bound and full-viewport, and
-    // past that the extra samples buy nothing a painted plate can show.
-    const dpr = () => Math.min(window.devicePixelRatio || 1, 1.5);
-
-    const fit = () => {
-      const r = el.getBoundingClientRect();
-      stage?.resize(r.width, r.height, dpr());
-      dirty = true;
-    };
-
-    const ro = new ResizeObserver(fit);
-    ro.observe(el);
-    fit();
-
     /**
-     * Only the two plates on screen are allowed to decode.
+     * Positions a slot's sequence where the playhead is asking for.
      *
-     * This is what makes nine clips affordable: at any moment at most two are
-     * running, and everything else is paused with its decoder idle. Without it
-     * the page holds nine simultaneous full-frame decodes to show one image.
+     * The pair barely changes between one rendered frame and the next, so the
+     * work here is almost always a single uniform; a texture is only sent when
+     * the scroll actually crosses a frame boundary.
      */
-    const audition = () => {
-      let any = false;
-      for (let i = 0; i < clips.length; i++) {
-        const v = clips[i];
-        if (!v) continue;
-        const onScreen = !document.hidden && (i === state.from || i === state.to);
-
-        if (PLATES[i].scrub) {
-          // Scrubbed clips never play; they are positioned by the playhead.
-          if (!v.paused) v.pause();
-          if (onScreen) seek(i, v);
-          continue;
-        }
-        if (onScreen) {
-          any = true;
-          if (v.paused) void v.play().catch(() => {});
-        } else if (!v.paused) {
-          v.pause();
-        }
-      }
-      playing = any;
-    };
-
-    /**
-     * Positions a scrubbed clip.
-     *
-     * This is a pipeline, not a fire-and-forget. Only one seek can be in flight
-     * on a video element, and assigning `currentTime` during one throws the
-     * decode away and starts over - so a continuous scroll that issued a seek
-     * per frame would spend all its time cancelling itself.
-     *
-     * But simply dropping a request while busy loses the newest position, and
-     * nothing would ever go back for it: the clip stops on whatever frame last
-     * happened to land and stays there while you keep scrolling. So the latest
-     * target is always recorded, and `onSettled` below picks it up the moment
-     * the decoder frees up.
-     */
-    const wanted: number[] = [];
-    const seeking = new Set<number>();
-
-    const pump = (i: number, v: HTMLVideoElement) => {
-      if (!v.duration || Number.isNaN(v.duration)) return;
-      if (seeking.has(i)) {
-        const since = seekedAt.get(i);
-        if (since === undefined || performance.now() - since < STALE_SEEK_MS) return;
-        seeking.delete(i);   // the seek was lost; take the slot back
-      }
-      let target = wanted[i];
-      if (target === undefined) return;
-
-      /* Clamp to the downloaded range. Seeking past the buffered edge does not
-         fail, it stalls on a stale frame, which is what glitching looks like.
-         Scrubbing therefore covers only what has arrived and widens as the
-         rest lands, instead of the clip being unusable until it is complete. */
-      let end = 0;
-      for (let k = 0; k < v.buffered.length; k++) {
-        if (v.buffered.start(k) <= target) end = Math.max(end, v.buffered.end(k));
-      }
-      if (end > 0.2) target = Math.min(target, end - 0.1);
-      // one frame at 12fps - below this the seek would land on the same frame
-      if (Math.abs(v.currentTime - target) < 1 / 12) return;
-      seeking.add(i);
-      seekedAt.set(i, performance.now());
-      v.currentTime = target;
+    const show = (slot: number) => {
+      const seq = seqs[slot];
+      if (!seq) return;
+      const pair = framePairAt(seq, at[slot] ?? 0);
+      if (!pair) return;
+      const settled =
+        pair.ia === seq.ia && pair.ib === seq.ib && Math.abs(pair.frac - seq.frac) < 0.002;
+      if (settled) return;
+      seq.ia = pair.ia;
+      seq.ib = pair.ib;
+      seq.frac = pair.frac;
+      stage?.setFrames(slot, pair.ia, pair.a, pair.ib, pair.b, pair.frac);
       dirty = true;
-    };
-
-    const seek = (i: number, v: HTMLVideoElement) => {
-      if (!v.duration || Number.isNaN(v.duration)) return;
-      wanted[i] = scrubAt[i] * v.duration;
-      pump(i, v);
-    };
-
-    /** A seek finished; take the newest target if the playhead has moved on. */
-    /* A seek that never reports back would freeze its clip forever, because
-       `pump` refuses to issue another while one is in flight. Browsers do drop
-       `seeked` occasionally under load, so an in-flight seek older than this
-       is treated as lost and the slot is released. */
-    const STALE_SEEK_MS = 400;
-    const seekedAt = new Map<number, number>();
-
-    const onSettled = (i: number, v: HTMLVideoElement) => {
-      seeking.delete(i);
-      seekedAt.delete(i);
-      dirty = true;
-      pump(i, v);
     };
 
     const unsub = subscribeStage((p) => {
+      (window as unknown as { __p?: number }).__p = p;
       const c = cueAt(p);
-      const changed = c.from !== state.from || c.to !== state.to;
-      /* Parallax is blended between the outgoing segment and the incoming one
-         across the handover.
 
-         Each segment pushes in and drifts the opposite way to the one before,
-         so a long scroll never reads as one continuous pan across nine
-         paintings. But `seg` resets 1 -> 0 at every boundary and `dir` flips
-         sign at the same instant, so reading either directly puts a hard jump
-         in zoom and pan right where the eye is already being asked to accept a
-         new plate. Blending by `mix` makes the camera continuous through the
-         cut, which is the difference between a handover and a jump cut. */
+      /* Parallax is blended between the outgoing segment and the incoming one
+         across a handover. Each segment pushes in and drifts the opposite way
+         to the one before, but `seg` resets 1 -> 0 at every boundary and the
+         direction flips at the same instant, so reading either directly puts a
+         hard jump in zoom and pan exactly where the eye is already being asked
+         to accept a new plate. */
       const camera = (segv: number, idx: number) => {
         const dir = idx % 2 === 0 ? 1 : -1;
         return {
@@ -207,17 +146,17 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
           panY: (segv - 0.5) * 0.03,
         };
       };
-      const camA = camera(c.seg, c.segIndex);
-      const camB = camera(c.segTo, c.segIndexTo);
+      const a = camera(c.seg, c.segIndex);
+      const b = camera(c.segTo, c.segIndexTo);
       const k = c.mix;
-      const lerp = (a: number, b: number) => a + (b - a) * k;
+      const lerp = (x: number, y: number) => x + (y - x) * k;
 
       state = {
         from: c.from,
         to: c.to,
         mix: c.mix,
-        zoom: lerp(camA.zoom, camB.zoom),
-        pan: [lerp(camA.panX, camB.panX), lerp(camA.panY, camB.panY)] as [number, number],
+        zoom: lerp(a.zoom, b.zoom),
+        pan: [lerp(a.panX, b.panX), lerp(a.panY, b.panY)] as [number, number],
         // the screen coarsens as the dissolve peaks, which is what sells it as
         // a printing plate rather than a crossfade
         cell: 7 + Math.sin(Math.min(1, c.mix) * Math.PI) * 9,
@@ -226,226 +165,180 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
       dissolving = c.mix > 0.001 && c.mix < 0.999;
       dirty = true;
 
-      /* A bridge is a filmed handover, but it is generated separately from the
-         plate clips either side of it, so its first and last frames do not
-         match theirs exactly. Cutting straight into it and straight out again
-         shows that mismatch as a jump - which is what the cut at the head of
-         the Work chapter was.
+      // each plate's own stretch is its sequence's timeline
+      at[c.from] = c.seg;
+      if (c.to !== c.from) at[c.to] = 0;
+      live.clear();
+      live.add(c.from);
+      live.add(c.to);
+      show(c.from);
+      if (c.to !== c.from) show(c.to);
 
-         So it is eased in and out: a short crossfade from the outgoing plate
-         into the bridge, the bridge alone through the middle, and a short
-         crossfade out to the incoming plate. */
+      /* A bridge is a filmed handover generated separately from the plates
+         either side, so its first and last frames do not match theirs exactly.
+         Cutting straight in and out shows that as a jump, so it is eased: a
+         short crossfade in, the bridge alone through the middle, and a short
+         crossfade out. */
       const bIdx = c.bridge ? bridgeSlot.get(c.bridge) : undefined;
       if (bIdx !== undefined && dissolving) {
         const RAMP = 0.18;
-        const m = c.mix;
-        scrubAt[bIdx] = m;
-        const bv = bridgeClips[bridges.indexOf(c.bridge as string)];
-        if (bv) seek(bIdx, bv);
-
-        if (m < RAMP) {
-          state = { ...state, from: c.from, to: bIdx, mix: m / RAMP, trans: 3 };
-        } else if (m > 1 - RAMP) {
-          state = { ...state, from: bIdx, to: c.to, mix: (m - (1 - RAMP)) / RAMP, trans: 3 };
+        at[bIdx] = c.mix;
+        live.add(bIdx);
+        show(bIdx);
+        if (c.mix < RAMP) {
+          state = { ...state, from: c.from, to: bIdx, mix: c.mix / RAMP, trans: 3 };
+        } else if (c.mix > 1 - RAMP) {
+          state = { ...state, from: bIdx, to: c.to, mix: (c.mix - (1 - RAMP)) / RAMP, trans: 3 };
         } else {
           state = { ...state, from: bIdx, to: bIdx, mix: 0, trans: 2 };
         }
       }
-
-      /* Each plate owns the stretch of runway between its own cue and the next,
-         so that segment's progress is the clip's timeline. The incoming plate
-         of a dissolve has not started its stretch yet and sits at its first
-         frame, which is what makes the handover read as one continuous shot. */
-      scrubAt[c.from] = c.seg;
-      if (c.to !== c.from) scrubAt[c.to] = 0;
-
-      if (changed) audition();
-      else {
-        for (const i of [c.from, c.to]) {
-          const v = clips[i];
-          if (v && PLATES[i].scrub) seek(i, v);
-        }
-      }
     });
 
-    /* Read-only probe. The clips live outside the DOM, so without this there is
-       no way to tell a frozen clip from a moving one - the camera keeps
-       drifting either way, which is exactly how a freeze went unnoticed. */
-    (window as unknown as { stageClipTimes?: () => (number | null)[] }).stageClipTimes = () =>
-      clips.map((c) => (c ? +c.currentTime.toFixed(3) : null));
+    /* Read-only probes. The frames are not in the DOM, so without these there
+       is no way to tell a stuck sequence from a moving one - the camera keeps
+       drifting either way, which is how a freeze went unnoticed before.
+       `shown` is where on the GPU each sequence is sitting - its leading frame
+       plus how far past it - and `loaded` is what has arrived; a slot can
+       legitimately have many frames and none of them shown, because a chapter
+       nobody is looking at is not worth uploading. */
+    const probe = window as unknown as {
+      stageClipTimes?: () => (number | null)[];
+      stageFilm?: () => { shown: number; loaded: number; n: number; live: boolean }[];
+    };
+    const positionOf = (s: Sequence | null) =>
+      !s || s.ia < 0 ? null : s.ia + (s.ib > s.ia ? (s.ib - s.ia) * s.frac : 0);
+    probe.stageClipTimes = () => seqs.map((s) => positionOf(s ?? null));
+    probe.stageFilm = () =>
+      seqs.map((s, i) => ({
+        shown: positionOf(s ?? null) ?? -1,
+        loaded: s?.loaded ?? 0,
+        n: s?.n ?? 0,
+        live: live.has(i),
+      }));
 
     const tick = () => {
       if (!alive || !stage) return;
-      if (!dirty && !dissolving && !playing) return;
+      if (!dirty && !dissolving) return;
       stage.render(state, gsap.ticker.time);
       dirty = dissolving;
     };
     gsap.ticker.add(tick);
 
-    // Nothing should keep decoding in a background tab. rAF stops on its own;
-    // a playing video does not.
-    const onVisibility = () => {
-      audition();
-      dirty = true;
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-
-    // Stills load in parallel and the first render waits for all of them. A
-    // stage that pops in one painting at a time as the network answers looks
-    // broken in a way that a half-second of ground colour does not.
-    void Promise.all(PLATES.map((p) => loadPlate(p)))
-      .then((sources) => {
-        if (!alive || !stage) return;
-        // the plate's measured tone, not its token - see Plate.tone
-        stage.setPlates(sources.map((source, i) => ({ source, ground: PLATES[i].tone })));
-        dirty = true;
-        return loadClips().then(loadBridges);
-      })
-      .catch(() => {});
-
-    /** Bridges load last: they are the least essential thing on the page. */
-    async function loadBridges() {
-      if (!wantsFilm()) return;
-      for (let i = 0; i < bridges.length; i++) {
-        if (!alive) return;
-        try {
-          const v = await loadMotion({ motion: bridges[i] } as never);
-          if (!alive) {
-            v.removeAttribute("src");
-            v.load();
-            return;
-          }
-          v.loop = false;
-          if (!stage) return;
-          bridgeClips[i] = v;
-          const slot = stage.addSlot(PLATES[0].tone);
-          bridgeSlot.set(bridges[i], slot);
-          while (scrubAt.length <= slot) scrubAt.push(0);
-          v.addEventListener("seeked", () => onSettled(slot, v));
-          stage.setMotion(slot, v, () => {
-            dirty = true;
-          });
-          dirty = true;
-        } catch {
-          /* no bridge; the cue falls back to its shader handover */
-        }
-      }
+    /* Slots exist before anything has been downloaded.
+       Each opens on its chapter's own ground colour, so the page is a finished
+       composition from its first painted frame and simply gains detail. The
+       film is started immediately rather than behind the stills: gating the
+       sequences on nine painted plates put three seconds between arriving and
+       the first frame that moves, which is the whole complaint. */
+    PLATES.forEach((p, i) => {
+      stage.addSlot(p.tone);
+      at[i] = 0;
+    });
+    for (const bridge of bridges) {
+      const slot = stage.addSlot(PLATES[0].tone);
+      bridgeSlot.set(bridge, slot);
+      at[slot] = 0;
     }
+    dirty = true;
 
-    /**
-     * Clips load nearest-first, re-deciding after every one.
-     *
-     * They used to load in fixed scroll order, which is only the right order
-     * for a visitor who waits at the top. Anyone who starts scrolling
-     * immediately outruns the queue and watches stills go by while the loader
-     * is still fetching chapter two. Re-reading the playhead between loads
-     * means whatever you are actually looking at is fetched next.
-     */
-    async function loadClips() {
-      // nothing to wait for when the stills are the whole design
+    void loadSequences();
+
+    /* The stills come in alongside, and stand down wherever the film has
+       already landed. They are what a reduced-motion or offline visit sees,
+       and until then they are simply a better placeholder than a flat wash. */
+    void Promise.all(
+      PLATES.map(async (plate, i) => {
+        const source = await loadPlate(plate);
+        if (!alive || !stage) return;
+        if ((seqs[i]?.ia ?? -1) >= 0) return;
+        stage.setSource(i, source);
+        dirty = true;
+      }),
+    ).catch(() => {});
+
+    async function loadSequences() {
       if (!wantsFilm()) return markFilmReady();
 
-      const pending = new Set<number>();
-      PLATES.forEach((pl, i) => {
-        if (pl.motion) pending.add(i);
+      const plan: { slot: number; base: string }[] = [];
+      PLATES.forEach((p, i) => {
+        if (p.film && FRAMES[p.film]) plan.push({ slot: i, base: p.film });
       });
-      bridges.forEach((_, i) => pending.add(PLATES.length + i));
+      for (const base of bridges) {
+        const slot = bridgeSlot.get(base);
+        if (slot !== undefined && FRAMES[base]) plan.push({ slot, base });
+      }
+      for (const { slot, base } of plan) seqs[slot] = createSequence(base, FRAMES[base]);
 
-      const cueOf = (i: number) =>
-        i < PLATES.length
-          ? PLATE_CUES.find((c) => c.plate === PLATES[i].id)?.at ?? 0
-          : PLATE_CUES.find((c) => c.bridge === bridges[i - PLATES.length])?.at ?? 0;
+      const cueOf = (slot: number) =>
+        slot < PLATES.length
+          ? PLATE_CUES.find((c) => c.plate === PLATES[slot].id)?.at ?? 0
+          : PLATE_CUES.find((c) => bridgeSlot.get(c.bridge ?? "") === slot)?.at ?? 0;
 
-      /** The pending clip whose cue is nearest the playhead right now. */
-      const nearest = () => {
-        const here = getStageProgress();
-        let best = -1;
-        let bestD = Infinity;
-        for (const i of pending) {
-          const d = Math.abs(cueOf(i) - here);
-          if (d < bestD) {
-            bestD = d;
-            best = i;
+      /* Two passes over every sequence. The first takes a strided handful from
+         each - about ten frames - which is already enough to scrub that clip
+         end to end; only then does the second fill in between them. Perfecting
+         one clip before starting the next would leave the later chapters with
+         nothing at all while the first was being finished, and the reader can
+         be in chapter seven within a second of arriving. */
+      const queue = new Map<number, number[]>();
+
+      const nextJob = () => {
+        /* Whichever unfinished chapter the reader is nearest goes first, read
+           fresh on every pick rather than fixed when the queue was built. A
+           reader who jumps to the end should not wait for the opening to
+           finish downloading before the ending will move. */
+        const p = getStageProgress();
+        let slot = -1;
+        let near = Infinity;
+        for (const [s, list] of queue) {
+          if (!list.length) continue;
+          const d = Math.abs(cueOf(s) - p);
+          if (d < near) {
+            near = d;
+            slot = s;
           }
         }
-        return best;
+        if (slot < 0) return null;
+        return { slot, i: queue.get(slot)!.shift()! };
       };
 
-      const one = async (i: number) => {
-        try {
-          if (i < PLATES.length) {
-            const v = await loadMotion(PLATES[i]);
-            if (!alive) {
-              v.removeAttribute("src");
-              v.load();
-              return;
-            }
-            clips[i] = v;
-            /* Without this the clip seeks exactly once and then freezes: `pump`
-               marks the slot as seeking and only `onSettled` clears it, so a
-               missing listener means every later seek is skipped silently. */
-            v.addEventListener("seeked", () => onSettled(i, v));
-            stage?.setMotion(i, v, () => {
-              dirty = true;
-            });
-            // the opening plate moving is the only thing the loader waits on
-            if (i === 0) markFilmReady();
-          } else {
-            const bi = i - PLATES.length;
-            const v = await loadMotion({ motion: bridges[bi] } as never);
-            if (!alive) {
-              v.removeAttribute("src");
-              v.load();
-              return;
-            }
-            bridgeClips[bi] = v;
-            const slot = bridgeSlot.get(bridges[bi]);
-            if (slot !== undefined) {
-              v.addEventListener("seeked", () => onSettled(slot, v));
-              stage?.setMotion(slot, v, () => {
-                dirty = true;
-              });
-            }
+      const LANES = 8;
+      const drain = async () => {
+        const run = async () => {
+          for (let job = nextJob(); alive && job; job = nextJob()) {
+            const seq = seqs[job.slot];
+            if (!seq) continue;
+            await loadFrame(seq, job.i);
+            if (!alive) return;
+            // only what is on screen is worth a texture upload
+            if (live.has(job.slot)) show(job.slot);
+            if (job.slot === 0) markFilmReady();
           }
-          audition();
-          dirty = true;
-        } catch {
-          /* no clip for this one; the still stands */
-        }
+        };
+        await Promise.all(Array.from({ length: LANES }, run));
       };
 
-      /* Three at a time. Strictly sequential was the right priority order and
-         the wrong throughput — one request at a time leaves most of the
-         connection idle, and the last clip landed a minute in. Priority is
-         re-read every time a lane frees, so whatever you are looking at is
-         still fetched first. */
-      const LANES = 3;
-      const lanes: Promise<void>[] = [];
-      const run = async () => {
-        while (alive && pending.size) {
-          const i = nearest();
-          if (i < 0) return;
-          pending.delete(i);
-          await one(i);
-        }
-      };
-      for (let k = 0; k < LANES; k++) lanes.push(run());
-      await Promise.all(lanes);
+      for (const { slot } of plan) {
+        const seq = seqs[slot]!;
+        queue.set(slot, fetchOrder(seq.n).slice(0, coarseCount(seq.n)));
+      }
+      await drain();
+      markFilmReady();
+
+      for (const { slot } of plan) {
+        const seq = seqs[slot]!;
+        queue.set(slot, fetchOrder(seq.n).slice(coarseCount(seq.n)));
+      }
+      await drain();
+      markFilmReady();
     }
 
     return () => {
       alive = false;
       unsub();
       ro.disconnect();
-      document.removeEventListener("visibilitychange", onVisibility);
       gsap.ticker.remove(tick);
-      // release the decoders, or they outlive the component
-      for (const v of clips) {
-        if (!v) continue;
-        v.pause();
-        v.removeAttribute("src");
-        v.load();
-      }
       stage.destroy();
     };
   }, [onUnavailable]);

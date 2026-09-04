@@ -43,25 +43,15 @@ export type Plate = {
    */
   ground: Ground;
   /**
-   * Optional moving version of this plate.
+   * The frame sequence that makes this plate move, named by its folder under
+   * `/strawberry/frames/`.
    *
-   * The still is always loaded first and is what the stage opens on; the clip
-   * replaces it as a texture once it has decoded a frame. So a missing or slow
-   * video costs nothing but the motion, and reduced motion never fetches one.
+   * Not a video. A clip has to be fetched, buffered and then seeked before it
+   * can show the frame the scroll is asking for, and every one of those steps
+   * can stall; a frame is an ordinary image, complete the moment it lands.
+   * Omitting this leaves the plate a still, which costs nothing else.
    */
-  motion?: string;
-  /**
-   * Drive this plate's clip from the scroll playhead instead of letting it play
-   * on its own clock.
-   *
-   * Only worth it for a clip that depicts a journey - something that is
-   * visibly different at its end than at its start. Scrubbing a clip whose
-   * motion merely oscillates reads as a still image that stutters, because the
-   * visitor drags thousands of pixels of scroll to produce a change they cannot
-   * see. A scrubbed clip must also be encoded all-intra or every seek decodes
-   * forward from a distant keyframe.
-   */
-  scrub?: boolean;
+  film?: string;
   /**
    * The exact colour this plate's flat areas resolve to, measured off the
    * finished painting rather than assumed from the token.
@@ -85,12 +75,32 @@ export type Plate = {
   alt: string;
 };
 
+/**
+ * How many frames each plate's sequence has.
+ *
+ * Allocated by chapter length rather than evenly: a chapter that owns twice
+ * the runway needs twice the frames to feel equally smooth under a scrub.
+ */
+export const FRAMES: Record<string, number> = {
+  "apply-sapling": 47,
+  "bridge-cut-to-work": 56,
+  "bridge-orbit-to-canopy": 56,
+  "bridge-work-to-orbit": 56,
+  "faq-canopy": 84,
+  "footer-grove": 46,
+  "hero-curtain": 54,
+  "model-cut": 47,
+  "model-graft": 65,
+  "model-ladder": 61,
+  "terms-orbit": 104,
+  "work-pear": 84,
+};
+
 export const PLATES: Plate[] = [
   {
     id: "curtain",
     src: "/strawberry/art/hero-curtain.webp",
-    motion: "/strawberry/art/hero-curtain.mp4",
-    scrub: true,
+    film: "hero-curtain",
     ground: "cobalt",
     tone: "#1a5380",
     sketch: "curtain",
@@ -99,8 +109,7 @@ export const PLATES: Plate[] = [
   {
     id: "graft",
     src: "/strawberry/art/model-graft.webp",
-    motion: "/strawberry/art/model-graft.mp4",
-    scrub: true,
+    film: "model-graft",
     ground: "bone",
     tone: "#d4d1c2",
     sketch: "graft",
@@ -109,8 +118,7 @@ export const PLATES: Plate[] = [
   {
     id: "ladder",
     src: "/strawberry/art/model-ladder.webp",
-    motion: "/strawberry/art/model-ladder.mp4",
-    scrub: true,
+    film: "model-ladder",
     ground: "bone",
     tone: "#c2b7a2",
     sketch: "ladder",
@@ -119,8 +127,7 @@ export const PLATES: Plate[] = [
   {
     id: "cut",
     src: "/strawberry/art/model-cut.webp",
-    motion: "/strawberry/art/model-cut.mp4",
-    scrub: true,
+    film: "model-cut",
     ground: "bone",
     tone: "#c8c5b1",
     sketch: "cut",
@@ -129,8 +136,7 @@ export const PLATES: Plate[] = [
   {
     id: "halftone-pear",
     src: "/strawberry/art/work-pear.webp",
-    motion: "/strawberry/art/work-pear.mp4",
-    scrub: true,
+    film: "work-pear",
     ground: "cobalt",
     tone: "#094777",
     sketch: "halftone-pear",
@@ -139,8 +145,7 @@ export const PLATES: Plate[] = [
   {
     id: "orbit",
     src: "/strawberry/art/terms-orbit.webp",
-    motion: "/strawberry/art/terms-orbit.mp4",
-    scrub: true,
+    film: "terms-orbit",
     ground: "azure",
     tone: "#236f8a",
     sketch: "orbit",
@@ -149,8 +154,7 @@ export const PLATES: Plate[] = [
   {
     id: "canopy",
     src: "/strawberry/art/faq-canopy.webp",
-    motion: "/strawberry/art/faq-canopy.mp4",
-    scrub: true,
+    film: "faq-canopy",
     ground: "cobalt",
     tone: "#14568b",
     sketch: "canopy",
@@ -159,8 +163,7 @@ export const PLATES: Plate[] = [
   {
     id: "sapling",
     src: "/strawberry/art/apply-sapling.webp",
-    motion: "/strawberry/art/apply-sapling.mp4",
-    scrub: true,
+    film: "apply-sapling",
     ground: "night",
     tone: "#10304c",
     sketch: "sapling",
@@ -169,8 +172,7 @@ export const PLATES: Plate[] = [
   {
     id: "grove",
     src: "/strawberry/art/footer-grove.webp",
-    motion: "/strawberry/art/footer-grove.mp4",
-    scrub: true,
+    film: "footer-grove",
     ground: "cobalt",
     tone: "#10598b",
     sketch: "grove",
@@ -245,11 +247,12 @@ export const PLATE_CUES: {
   plate: string;
   via?: Handover;
   /**
-   * A filmed transition that carries the whole handover on its own.
+   * A filmed transition that carries the whole handover on its own, named by
+   * its folder under `/strawberry/frames/`.
    *
    * Only possible where the two plates share a shape - a gilded strawberry
-   * becoming a printed one is the same object twice, so the clip can bend it.
-   * Where they share nothing the model can only crossfade, which the shader
+   * becoming a printed one is the same object twice, so the sequence can bend
+   * it. Where they share nothing the model can only crossfade, which the shader
    * already does better; those cues keep `dissolve`.
    */
   bridge?: string;
@@ -260,11 +263,11 @@ export const PLATE_CUES: {
   { at: 0.2, plate: "ladder" },
   { at: 0.295, plate: "cut" },
   // the gilded fruit turns into the printed one, in place
-  { at: 0.395, plate: "halftone-pear", via: "bridge", bridge: "/strawberry/art/bridge-cut-to-work.mp4" },
+  { at: 0.395, plate: "halftone-pear", via: "bridge", bridge: "bridge-cut-to-work" },
   // the dots close back up into solid gold
-  { at: 0.545, plate: "orbit", via: "bridge", bridge: "/strawberry/art/bridge-work-to-orbit.mp4" },
+  { at: 0.545, plate: "orbit", via: "bridge", bridge: "bridge-work-to-orbit" },
   // one fruit recedes and becomes one of many
-  { at: 0.722, plate: "canopy", via: "bridge", bridge: "/strawberry/art/bridge-orbit-to-canopy.mp4" },
+  { at: 0.722, plate: "canopy", via: "bridge", bridge: "bridge-orbit-to-canopy" },
   // daylight canopy into the night sky of the application
   { at: 0.862, plate: "sapling", via: "iris" },
   { at: 0.938, plate: "grove" },
