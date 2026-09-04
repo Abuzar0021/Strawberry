@@ -89,22 +89,35 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
     fit();
 
     /**
-     * Whether this device should fetch the sequences at all.
+     * What this connection should fetch.
      *
      * Screen size is deliberately not a reason to refuse. A phone on wifi takes
      * these perfectly well, and refusing every narrow viewport made the point of
-     * the site invisible on the device most people open it on. What matters is
-     * what the connection says about itself: an explicit data-saver request, or
-     * a link slow enough that the download would outlast the visit.
+     * the site invisible on the device most people open it on.
+     *
+     * `effectiveType` is not a reason to refuse either, which cost an hour to
+     * learn: it is a rolling estimate of recent throughput, not a property of
+     * the link, and Chrome will call a perfectly good connection "3g" after a
+     * heavy page. Treating that as a veto left the plates as stills on hardware
+     * that could have run the whole thing. So the only outright refusals are the
+     * ones the user actually asked for - reduced motion, data saver - and links
+     * slow enough that the download would outlast the visit.
+     *
+     * A merely slow link gets the coarse pass and stops there: about ten frames
+     * per chapter, nine megabytes, and every chapter scrubs. It is the same site
+     * with a coarser grain, which is a far better trade than nine still images.
      */
+    const link = () =>
+      (navigator as { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+
     const wantsFilm = () => {
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
-      const c = (navigator as { connection?: { saveData?: boolean; effectiveType?: string } })
-        .connection;
+      const c = link();
       if (c?.saveData) return false;
-      if (c?.effectiveType && /(^|-)([23]g|slow)/.test(c.effectiveType)) return false;
-      return true;
+      return !(c?.effectiveType && /(^|-)(2g|slow)/.test(c.effectiveType));
     };
+
+    const wantsEveryFrame = () => !/(^|-)3g/.test(link()?.effectiveType ?? "");
 
     /**
      * Positions a slot's sequence where the playhead is asking for.
@@ -326,6 +339,8 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
       }
       await drain();
       markFilmReady();
+
+      if (!wantsEveryFrame()) return;
 
       for (const { slot } of plan) {
         const seq = seqs[slot]!;
