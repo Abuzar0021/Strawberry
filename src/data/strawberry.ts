@@ -102,6 +102,10 @@ export type Plate = {
  * clip. What is left is source-limited: a single frame-to-frame jump larger
  * than the step cannot be subdivided by any sampling, and the two that remain
  * sit inside a bridge's crossfade ramp.
+ *
+ * The opening chapter is the exception and carries every frame its source has.
+ * It is the first thing anyone sees, and at 640px its frames are the smallest
+ * on the site - going from 142 to all 192 cost four hundred kilobytes.
  */
 export const FRAMES: Record<string, number> = {
   "apply-sapling": 39,
@@ -110,7 +114,7 @@ export const FRAMES: Record<string, number> = {
   "bridge-work-to-orbit": 110,
   "faq-canopy": 83,
   "footer-grove": 60,
-  "hero-curtain": 142,
+  "hero-curtain": 192,
   "model-cut": 47,
   "model-graft": 116,
   "model-ladder": 55,
