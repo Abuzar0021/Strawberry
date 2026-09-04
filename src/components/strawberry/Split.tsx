@@ -5,14 +5,14 @@
  *
  * Both of these split at render rather than by rewriting the DOM afterwards, so
  * the markup is the same on the server and the client and nothing reflows once
- * the font lands. The cost is that line breaks have to be authored — which is
+ * the font lands. The cost is that line breaks have to be authored - which is
  * how the reference build does it too, and at these sizes a headline that
  * chooses its own breaks is a headline nobody art-directed.
  *
  * The accessible name is always the real string in an `.sr-only` span; the
  * pieces are decoration and are hidden from assistive tech. Letting the
  * fragments be the name is how you end up with a screen reader spelling out
- * "P — e — a — r".
+ * "P - e - a - r".
  */
 
 /** Per-character, kept inside per-word groups so the line can still wrap. */

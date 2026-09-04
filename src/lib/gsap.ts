@@ -19,7 +19,7 @@ export const useIsoLayoutEffect =
 
 /**
  * Scopes every tween and ScrollTrigger created inside `setup` to a container
- * and reverts them on unmount — the single cleanup path for the whole site.
+ * and reverts them on unmount - the single cleanup path for the whole site.
  */
 export function useGsapScope<T extends HTMLElement>(
   setup: (api: { self: T; mm: gsap.MatchMedia; ctx: gsap.Context }) => void,
@@ -31,8 +31,8 @@ export function useGsapScope<T extends HTMLElement>(
     const self = ref.current;
     if (!self) return;
     const mm = gsap.matchMedia();
-    // `ctx` is handed to the setup so work that has to wait — for fonts, for a
-    // measurement — can still be registered inside the scope and reverted with it
+    // `ctx` is handed to the setup so work that has to wait - for fonts, for a
+    // measurement - can still be registered inside the scope and reverted with it
     const ctx = gsap.context((c: gsap.Context) => setup({ self, mm, ctx: c }), self);
     return () => {
       mm.revert();

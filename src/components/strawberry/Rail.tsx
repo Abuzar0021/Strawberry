@@ -9,7 +9,7 @@ import { CHAPTERS, SCENES } from "@/data/strawberry";
  *
  * The only persistent navigation on the site, and the only affordance that
  * admits the page has parts. It marks the current chapter rather than linking to
- * anchors, because there are no anchors — every "section" is a window on one
+ * anchors, because there are no anchors - every "section" is a window on one
  * playhead, so a chapter is a position to seek to.
  */
 export function Rail({ seek }: { seek: (p: number) => void }) {
@@ -29,7 +29,7 @@ export function Rail({ seek }: { seek: (p: number) => void }) {
       // opacity alone still leaves four buttons in the tab order
       el.inert = done;
 
-      // the last chapter whose start we have passed, or none at all — the
+      // the last chapter whose start we have passed, or none at all - the
       // hero sits before chapter one and should not light it up
       let next = -1;
       for (let i = 0; i < CHAPTERS.length; i++) if (p >= CHAPTERS[i].at) next = i;

@@ -8,7 +8,7 @@ type Frame = (ctx: { t: number; alpha: number; el: HTMLElement }) => void;
 /**
  * Binds a layer to its window on the playhead.
  *
- * Every scene wants the same three things — fade in, drift past, fade out — and
+ * Every scene wants the same three things - fade in, drift past, fade out - and
  * then something of its own. The shared part lives here so nine layers cannot
  * drift into nine slightly different fades, and `onFrame` gets the local 0–1 for
  * whatever the scene does beyond that.

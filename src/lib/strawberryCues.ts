@@ -6,14 +6,14 @@ export const DISSOLVE = 0.026;
 /**
  * The iris gets roughly twice the runway of a dissolve.
  *
- * A halftone dissolve reads at any speed because it is a texture effect — it
+ * A halftone dissolve reads at any speed because it is a texture effect - it
  * looks the same at every moment. The iris is a movement, and a movement given
  * only 400px of scroll is over before it registers as one.
  */
 export const IRIS = 0.055;
 
 /**
- * A bridge is a whole filmed shot, so it needs the most runway of the three —
+ * A bridge is a whole filmed shot, so it needs the most runway of the three -
  * it has a beginning, a middle and an end to get through, where a dissolve only
  * has a strength.
  */
@@ -37,7 +37,7 @@ export type Cue = {
    *
    * The parallax has to be blended from `seg`/`segIndex` to these across the
    * handover. Without it the camera reads `seg` alone, which snaps 1 -> 0 at
-   * every boundary while `dir` simultaneously flips sign — a hard cut in zoom
+   * every boundary while `dir` simultaneously flips sign - a hard cut in zoom
    * and pan that looks like a jump cut in the footage.
    */
   segTo: number;
@@ -51,15 +51,15 @@ export type Cue = {
 /**
  * Resolves the playhead to a pair of plates and the dissolve between them.
  *
- * Both the renderer and the copy layers need this — the renderer to blend two
+ * Both the renderer and the copy layers need this - the renderer to blend two
  * textures, the copy to know whether it is currently standing on a cream ground
- * or a bone one — so it is computed in one place and read twice rather than
+ * or a bone one - so it is computed in one place and read twice rather than
  * derived twice with two chances to disagree.
  */
 const widthOf = (cue: { via?: "dissolve" | "iris" | "bridge" }) =>
   cue.via === "bridge" ? BRIDGE : cue.via === "iris" ? IRIS : DISSOLVE;
 
-/** Where cue `i`'s own stretch ends — the moment its handover starts. */
+/** Where cue `i`'s own stretch ends - the moment its handover starts. */
 function endOf(i: number) {
   const next = PLATE_CUES[i + 1];
   return next ? next.at - widthOf(next) / 2 : 1;
@@ -84,7 +84,7 @@ export function cueAt(p: number): Cue {
 
   /* A handover window is centred on the cue it arrives at, so half of it lies
      *after* that cue. Without this branch the segment index advances at the
-     cue, `from` becomes the incoming plate and the mix resets — which snapped
+     cue, `from` becomes the incoming plate and the mix resets - which snapped
      every handover at its own midpoint and threw away the second half. */
   const wIn = widthOf(PLATE_CUES[i]);
   if (i > 0 && p < PLATE_CUES[i].at + wIn / 2) {
@@ -111,7 +111,7 @@ export function cueAt(p: number): Cue {
 
   /* A plate's stretch ends when its handover BEGINS, not at the next cue.
      A scrubbed clip is driven by this, and its action has to have finished
-     before the transition starts pulling the plate apart — a curtain still
+     before the transition starts pulling the plate apart - a curtain still
      closing while the iris is already opening through it reads as two things
      fighting rather than one following the other. */
   const seg = progressIn(i, p);

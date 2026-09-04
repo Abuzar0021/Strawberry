@@ -19,7 +19,7 @@ const INTRO = 1400;
  *
  * This is also the one scene whose entrance is on a clock rather than on the
  * playhead. Its window opens at progress zero, so there is no scroll available
- * to reveal it with — a visitor who never touches the wheel has to be looking at
+ * to reveal it with - a visitor who never touches the wheel has to be looking at
  * a finished page. Scroll only takes over for the exit.
  */
 export function HeroScene({ onApply }: { onApply: () => void }) {
@@ -56,7 +56,7 @@ export function HeroScene({ onApply }: { onApply: () => void }) {
     };
 
     // Splitting measures nothing, but the characters still shift when the
-    // display face swaps in — starting after it lands keeps the stagger from
+    // display face swaps in - starting after it lands keeps the stagger from
     // running twice over two different sets of positions.
     const kick = () => {
       if (!cancelled) raf = requestAnimationFrame(step);

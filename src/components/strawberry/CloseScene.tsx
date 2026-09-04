@@ -9,7 +9,7 @@ import { BRAND, SCENES } from "@/data/strawberry";
  *
  * The wordmark lands last, over the plate where the bed is finally bearing.
  * The lambda standing in for the "a" is the site's one joke, and it only works
- * because nothing else here is playful — so it is kept, and it survives the
+ * because nothing else here is playful - so it is kept, and it survives the
  * longer name because the "a" sits near the middle either way.
  */
 export function CloseScene() {

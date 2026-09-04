@@ -7,6 +7,7 @@ import { groundAt } from "@/lib/strawberryCues";
 import { subscribeStage, useStageScrub, setStill } from "@/hooks/strawberry/useStrawberryScrub";
 import { BRAND, PLATE_BY_ID, RUNWAY_VH, SCENES, SCENE_ORDER } from "@/data/strawberry";
 import { PlateCanvas } from "./PlateCanvas";
+import { Loader } from "./Loader";
 import { Rail } from "./Rail";
 import { HeroScene } from "./HeroScene";
 import { BeatScene } from "./BeatScene";
@@ -20,7 +21,7 @@ import { CloseScene } from "./CloseScene";
  * The stage.
  *
  * The document is one tall runway with a single sticky pin on it. Everything
- * the visitor sees — nine paintings and nine copy layers — lives inside that one
+ * the visitor sees - nine paintings and nine copy layers - lives inside that one
  * viewport-sized element, and scroll position is the only input any of it takes.
  *
  * The runway height is the site's whole information architecture: there are no
@@ -54,7 +55,7 @@ export function StrawberryStage() {
     setIsStill(true);
   }, []);
 
-  /* The fallback is silent by design — it just becomes a different, simpler
+  /* The fallback is silent by design - it just becomes a different, simpler
      site. That makes it very hard to tell from the outside whether you are
      looking at a bug or at the document mode working correctly, so it says so
      once. Both causes are environmental and neither is visible in the markup. */
@@ -100,7 +101,7 @@ export function StrawberryStage() {
       const layer = layers[i];
       if (!layer) return;
       /* A layer may already have hidden itself before the fallback was
-         decided — the no-WebGL path only fires after the renderer has tried.
+         decided - the no-WebGL path only fires after the renderer has tried.
          `inert` and `visibility` are set from script, so CSS cannot take them
          back and this has to. */
       layer.inert = false;
@@ -131,6 +132,7 @@ export function StrawberryStage() {
 
   return (
     <div ref={root} data-still={still ? "1" : "0"}>
+      <Loader />
       <main>
         <section className="stage" ref={stage} style={{ height: `${RUNWAY_VH}vh` }}>
           <div className="pin" ref={pin} data-ink="cream">
@@ -141,7 +143,7 @@ export function StrawberryStage() {
             <span className="hair hair-h" style={{ top: "var(--rule)" }} aria-hidden="true" />
             <span className="hair hair-v" style={{ left: "var(--v1)" }} aria-hidden="true" />
 
-            <a href="#apply" className="mark" aria-label={`${BRAND.name} — top of page`}>
+            <a href="#apply" className="mark" aria-label={`${BRAND.name} - top of page`}>
               {/* A strawberry reduced to two strokes: the shoulder-and-taper of
                   the berry, and the calyx across the top. Drawn open rather than
                   filled so it reads at 24px against both grounds. */}

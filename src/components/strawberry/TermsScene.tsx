@@ -9,7 +9,7 @@ import { SCENES, TERMS } from "@/data/strawberry";
  * Chapter three: the terms, in two panels.
  *
  * The headline sits at the top of the frame and the fine print at the bottom,
- * with the plate visible between them. That gap is the point — this is the
+ * with the plate visible between them. That gap is the point - this is the
  * chapter where the site is asking to be trusted, so it leaves the commercial
  * terms uncrowded rather than packing them into a card.
  */

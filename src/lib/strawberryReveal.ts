@@ -39,7 +39,7 @@ export function revealLines(el: HTMLElement, t: number, span = 0.4, selector = "
   }
 }
 
-/** Everything else — chips, paragraphs, buttons — fades up as a group. */
+/** Everything else - chips, paragraphs, buttons - fades up as a group. */
 export function revealBlocks(el: HTMLElement, t: number, span = 0.46, selector = "[data-rise]") {
   const list = nodes(el, selector);
   for (let i = 0; i < list.length; i++) {

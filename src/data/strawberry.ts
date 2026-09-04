@@ -1,5 +1,5 @@
 /**
- * PEAR — content and the scroll timeline.
+ * STRAWBERRY - content and the scroll timeline.
  *
  * The whole site is one pinned stage. Every scene below is a window on a single
  * 0–1 playhead rather than a section in the document, so the numbers here are
@@ -9,17 +9,17 @@
 
 export const BRAND = {
   name: "Strawberry",
-  tagline: "Not an agency on the clock, a partner in the upside.",
+  tagline: "Solo-built · Self-hosted · Yours.",
   description:
-    "Strawberry builds custom software, ranks it where customers search, and takes its pay as a share of the revenue it earns. No retainers, no hours.",
-  org: "STRAWBERRY · OMNISTACKSDIGITAL.COM",
+    "Fast, self-hosted sites for businesses that are finished renting their own storefront. You get the code, the keys, the hosting account, and an invoice that actually ends.",
+  org: "OMNISTACK DIGITAL · DUBLIN · JAKARTA",
   email: "omnistacksdigital@gmail.com",
 } as const;
 
 /**
  * How tall the runway is, in viewport heights. The source runs 5350vh; the
  * scenes below are authored against a normalised playhead, so this is a single
- * pacing dial — raising it slows every scene by the same proportion.
+ * pacing dial - raising it slows every scene by the same proportion.
  */
 export const RUNWAY_VH = 4800;
 
@@ -31,7 +31,7 @@ export type Ground = "cobalt" | "azure" | "bone" | "night";
  * `src` is where finished artwork goes. Until a file exists at that path the
  * loader paints the procedural stand-in named by `sketch` instead, so dropping
  * real art in is a file copy and no code change. `ground` is the flat colour the
- * plate resolves to at its edges — the copy layers read it to decide whether
+ * plate resolves to at its edges - the copy layers read it to decide whether
  * they are setting type in cream or in ink.
  */
 export type Plate = {
@@ -54,7 +54,7 @@ export type Plate = {
    * Drive this plate's clip from the scroll playhead instead of letting it play
    * on its own clock.
    *
-   * Only worth it for a clip that depicts a journey — something that is
+   * Only worth it for a clip that depicts a journey - something that is
    * visibly different at its end than at its start. Scrubbing a clip whose
    * motion merely oscillates reads as a still image that stutters, because the
    * visitor drags thousands of pixels of scroll to produce a change they cannot
@@ -213,7 +213,7 @@ export type SceneName = keyof typeof SCENES;
 /**
  * Scene order, and the plate each one stands on.
  *
- * Only the document fallback needs this — with no shader running, each layer
+ * Only the document fallback needs this - with no shader running, each layer
  * has to paint its own ground so the copy still has something legible behind
  * it. The order must match the order the layers are rendered in.
  */
@@ -233,8 +233,8 @@ export const SCENE_ORDER: { scene: SceneName; plate: string }[] = [
  * Which plate is on screen across the runway, and where each hands over.
  *
  * `via` picks how the handover INTO that plate is drawn. The halftone dissolve
- * is the house style and carries most of them; the iris is a bigger gesture —
- * a circle opening from the centre with both plates counter-scaling through it —
+ * is the house style and carries most of them; the iris is a bigger gesture -
+ * a circle opening from the centre with both plates counter-scaling through it -
  * and is spent only where the site is meant to feel like it is going somewhere.
  * Using it everywhere would cost the dissolve its meaning.
  */
@@ -247,7 +247,7 @@ export const PLATE_CUES: {
   /**
    * A filmed transition that carries the whole handover on its own.
    *
-   * Only possible where the two plates share a shape — a gilded strawberry
+   * Only possible where the two plates share a shape - a gilded strawberry
    * becoming a printed one is the same object twice, so the clip can bend it.
    * Where they share nothing the model can only crossfade, which the shader
    * already does better; those cues keep `dissolve`.
@@ -271,107 +271,108 @@ export const PLATE_CUES: {
 ];
 
 export const HERO = {
-  headline: "Strawberry makes you appear.",
-  subhead: ["Not an agency on the clock,", "a partner in the upside."],
-  cta: "Request Partnership",
-  badge: "At your service",
+  headline: "Websites you actually own.",
+  subhead: ["Solo-built · Self-hosted", "· Yours."],
+  cta: "Start a build",
+  badge: "Dublin · Jakarta",
   stand:
-    "We build custom software, rank it where customers search, and take our pay as a share of the revenue it earns. No retainers, no hours: if you don’t grow, we don’t get paid.",
+    "Fast, self-hosted sites for businesses that are finished renting their own storefront. You get the code, the keys, the hosting account, and an invoice that actually ends.",
 } as const;
 
 /** Chapter one, told in three beats over three plates. */
 export const BEATS = [
   {
+    headline: ["We audit it."],
+    badge: "Step one",
+    stand: "What you have, what it costs you, and what is actually worth rebuilding.",
+  },
+  {
     headline: ["We build it."],
-    badge: "Custom software",
-    stand: "Tailored software, built to be found.",
+    badge: "Two to four weeks",
+    stand: "One person, start to finish. Websites, web apps, AI automation, UI/UX and SEO.",
   },
   {
-    headline: ["We rank it."],
-    badge: "Search",
-    stand: "Search and links that put you in front of the crowd.",
-  },
-  {
-    headline: ["We share in", "what it earns."],
-    badge: "Revenue share",
-    stand: "No hours billed — we co-own the outcome.",
+    headline: ["You keep it."],
+    badge: "Handover",
+    stand: "The code, the keys, the hosting account. No monthly platform fees. Ever.",
   },
 ] as const;
 
 export const WORK = {
   groups: [
     {
-      chip: "Search engine optimization",
-      headline: ["Everything it takes to be", "found, under one roof."],
-      body: "Search and software are one discipline at Strawberry. The product is built to rank from its first commit, and the SEO is done by the people who wrote the code.",
+      chip: "Website development",
+      headline: ["Sites that are yours the", "day they ship."],
+      body: "Built to be fast and self-hosted, handed over whole. You own the code, the keys and the hosting account, and there is no platform sitting between you and your own storefront.",
     },
     {
-      chip: "Search engine optimization",
-      headline: ["Search and software are one", "discipline at Strawberry."],
-      body: "The product is built to rank from its first commit, and the SEO is done by the people who wrote the code.",
+      chip: "Web applications",
+      headline: ["The machinery a modern", "business runs on."],
+      body: "Storefronts, booking systems, internal tools. Built by one person end to end, which is why it takes two to four weeks instead of two quarters.",
     },
     {
-      chip: "Custom software",
-      headline: [
-        "We design and build the thing being",
-        "ranked: storefronts, marketplaces,",
-        "booking systems, the machinery a",
-        "modern company sells through.",
-      ],
-      body: "Most software is built first and optimized later, which is backwards. Architecture, speed and structure decide rankings before the first word of copy is written, so ours ships fast, renders clean, and gives search engines a site they can read without excuses.",
+      chip: "AI automation · UI/UX · SEO",
+      headline: ["Everything around the build,", "by the person who built it."],
+      body: "The automation, the interface and the search work are done by whoever wrote the code, so nothing has to be explained twice or handed between three agencies.",
     },
   ],
 } as const;
 
 export const TERMS = [
   {
-    headline: ["No fees. A share", "of the upside."],
-    lead: "You pay nothing to start: no retainer, no project fee, no hours on a clock. We carry the cost of strategy, development, content and links.",
-    chip: "Full disclosure",
+    headline: ["No monthly platform", "fees. Ever."],
+    lead: "Four dollars a month for hosting, paid to your host, not to us, and not to a platform taking a cut of your own storefront.",
+    chip: "What it costs",
     small:
-      "Our pay is an agreed share of the revenue the work creates, measured against your baseline and visible to both sides. You keep everything we build: the software, the content, the rankings. And we take on a few partners at a time, because when we are paid on the outcome, yes has to be earned.",
+      "There is no platform tax, no seat pricing and no plan to be upgraded out of. The hosting account is in your name from the day it is set up, so the bill you pay is the bill your host charges and nothing else is layered on top of it.",
   },
   {
-    headline: ["We say no more", "often than yes."],
-    lead: "Our partners sell real products and services, have revenue to grow, and compete in markets where customers search: e-commerce, SaaS, marketplaces, service companies.",
-    chip: "Full disclosure",
+    headline: ["An invoice that", "actually ends."],
+    lead: "Audit, build, review, handover. Two to four weeks, one person, and then it is finished and it is yours.",
+    chip: "How it works",
     small:
-      "If that’s you, the terms above are the whole pitch. If you’re pre-revenue, want to rent developers by the hour, or need results by Friday, we’re the wrong partner, and we’ll tell you so in the first call.",
+      "You are not buying a subscription to your own website. At handover you get the code, the keys and the hosting account, and if you never speak to us again the site keeps running exactly as it did the day it shipped.",
   },
 ] as const;
 
 export const FAQ_LEAD = "Asked before";
 
+/** Shown once, while the opening plate's clip buffers. */
+export const LOADING = {
+  word: "Ripening",
+  sub: "Solo-built · Self-hosted · Yours.",
+} as const;
+
 export const FAQ = [
   {
-    q: "What does it cost to work with Strawberry?",
-    a: "Nothing upfront and nothing hourly. We fund the strategy, the software, the content and the link building ourselves. Our payment is an agreed percentage of the new revenue that work generates. If your revenue doesn’t grow, you owe us nothing.",
+    q: "What does it cost to run?",
+    a: "Four dollars a month for hosting, paid directly to your host. There are no monthly platform fees, no seat pricing and no plan you get upgraded out of - the bill you pay is your host's bill and nothing is layered on top of it.",
   },
   {
-    q: "What share of the revenue do you take?",
-    a: "It’s agreed per partnership before we start, and depends on how much building the opportunity needs. It applies only to growth above your existing baseline, never to the revenue you already had.",
+    q: "How long does a build take?",
+    a: "Two to four weeks. One person takes it from the first audit through to handover, which is why it is measured in weeks rather than quarters and why nothing has to be explained twice.",
   },
   {
-    q: "Why revenue share instead of fees?",
-    a: "Because hourly billing pays agencies for effort, not results. An agency on a retainer earns the same whether you grow or not. We removed the retainer, so the only way for us to get paid is to grow your revenue.",
+    q: "What do I actually own at the end?",
+    a: "The code, the keys and the hosting account. The account is in your name, so if you never speak to us again the site keeps running exactly as it did the day it shipped.",
   },
   {
-    q: "How do you measure the revenue you create?",
-    a: "Before we begin, we agree on a baseline from your existing numbers and on how new organic revenue is attributed: analytics, order data or bookings, depending on your business. Both sides see the same dashboard.",
+    q: "How does the process work?",
+    a: "Four steps. An audit of what you have and what it costs you, the build itself, a review with you, and then handover. One person throughout.",
   },
   {
-    q: "How long before it pays off?",
-    a: "Search compounds slowly, then quickly. Software and technical fixes land in weeks; rankings and revenue typically move within months. The model means the waiting costs you nothing: we’re the ones financing the ramp.",
+    q: "What do you build?",
+    a: "Websites, web applications, AI automation, UI/UX design and SEO. The automation and the search work are done by whoever wrote the code, rather than handed between three agencies.",
   },
 ] as const;
 
 export const APPLY = {
-  lead: "The application",
-  body: "Tell us what you sell and where you want to grow. Every application is read, and when the model fits we answer within a week.",
-  cta: "Send the application",
+  lead: "Start a build",
+  body: "Tell us what you have now and what you want to own instead. Every enquiry is read, and you will hear back within a week.",
+  cta: "Start a build",
   fields: [
     { k: "name", label: "Your name", type: "text", autoComplete: "name" },
     { k: "email", label: "Email", type: "email", autoComplete: "email" },
-    { k: "grow", label: "What do you sell, and where do you want to grow?", type: "textarea" },
+    { k: "grow", label: "What do you have now, and what should it become?", type: "textarea" },
   ],
 } as const;

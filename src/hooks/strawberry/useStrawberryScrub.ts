@@ -29,8 +29,8 @@ export const getStageProgress = () => smoothed;
 /**
  * Subscribe to the playhead.
  *
- * Every layer on the stage — the WebGL plates, each copy scene, the chapter
- * rail, the FAQ carousel — reads this one value instead of owning a
+ * Every layer on the stage - the WebGL plates, each copy scene, the chapter
+ * rail, the FAQ carousel - reads this one value instead of owning a
  * ScrollTrigger of its own. Nine triggers measuring the same pinned element is
  * nine chances to disagree by a frame, and on a stage where the copy sits over
  * the artwork that disagreement is visible as the type sliding against the
@@ -52,7 +52,7 @@ export function subscribeStage(fn: Listener) {
  *
  * ScrollTrigger reports the raw position; a lerp on GSAP's ticker eases the
  * value everything else consumes. That easing is the difference between the
- * plates cross-dissolving like film and stepping like a slider — the dissolve
+ * plates cross-dissolving like film and stepping like a slider - the dissolve
  * keeps running for a moment after the wheel stops, and a flicked trackpad
  * cannot jump a whole chapter in one tick.
  */

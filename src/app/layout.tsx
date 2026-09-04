@@ -31,10 +31,10 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: `${BRAND.name} — ${BRAND.tagline}`,
+  title: `${BRAND.name} - ${BRAND.tagline}`,
   description: BRAND.description,
   openGraph: {
-    title: `${BRAND.name} — ${BRAND.tagline}`,
+    title: `${BRAND.name} - ${BRAND.tagline}`,
     description: BRAND.description,
     type: "website",
   },

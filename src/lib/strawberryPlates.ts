@@ -8,8 +8,8 @@ import type { Ground, Plate } from "@/data/strawberry";
  * Pear's own stage is carried by commissioned neoclassical painting. This file
  * paints a substitute for each plate so the shader, the dissolves and the whole
  * scroll can be built, reviewed and shipped before any artwork is finished. The
- * stand-ins are deliberately reductive — a ground wash, a canvas weave, a
- * vignette and a silhouette — because the one thing worse than an obvious
+ * stand-ins are deliberately reductive - a ground wash, a canvas weave, a
+ * vignette and a silhouette - because the one thing worse than an obvious
  * placeholder is a placeholder good enough that nobody replaces it.
  *
  * `loadPlate` prefers the real file and only falls back, so finishing the site
@@ -19,7 +19,7 @@ import type { Ground, Plate } from "@/data/strawberry";
 /**
  * The named grounds, measured off the finished plates.
  *
- * `base` is only the fallback and the pre-load background — the shader takes
+ * `base` is only the fallback and the pre-load background - the shader takes
  * each plate's own `tone`. `ink` is the decision that actually matters here:
  * whether copy standing on this ground sets in cream or in ink.
  */
@@ -209,7 +209,7 @@ const SKETCHES: Record<Plate["sketch"], (ctx: Ctx, g: Ground) => void> = {
     ctx.lineTo(PLATE_W * 0.66, PLATE_H * 0.3);
     ctx.stroke();
 
-    // the binding — the whole point of the image
+    // the binding - the whole point of the image
     ctx.strokeStyle = "#cdbb8c";
     ctx.lineWidth = 7;
     for (let i = 0; i < 9; i++) {
@@ -403,7 +403,7 @@ function leaves(ctx: Ctx, cx: number, cy: number, spread: number, n: number) {
   }
 }
 
-/** Clouds are drawn as dots throughout — the site's one recurring motif. */
+/** Clouds are drawn as dots throughout - the site's one recurring motif. */
 function clouds(ctx: Ctx, cx: number, cy: number, w: number) {
   const r = rng(Math.round(cx * 3 + cy));
   ctx.fillStyle = "rgba(244,241,231,0.92)";
@@ -501,7 +501,7 @@ export async function loadPlate(plate: Plate): Promise<TexImageSource> {
  *
  * Resolves only once the clip has a decodable frame, because a video handed to
  * `texImage2D` before `readyState 2` uploads nothing and leaves the slot black.
- * Rejects on anything else — a missing or broken clip is not an error worth
+ * Rejects on anything else - a missing or broken clip is not an error worth
  * surfacing, it just means the plate stays a still.
  */
 export function loadMotion(plate: Plate): Promise<HTMLVideoElement> {
@@ -518,30 +518,22 @@ export function loadMotion(plate: Plate): Promise<HTMLVideoElement> {
     // never in the document: this element exists only to feed the GPU
     v.setAttribute("aria-hidden", "true");
 
-    /**
-     * A scrubbed clip is only usable once the WHOLE file is buffered.
+    /*
+     * Ready as soon as there is a decodable frame, not when the whole file has
+     * arrived.
      *
-     * `loadeddata` fires at readyState 2, which guarantees the first frame and
-     * nothing else. Handing the stage a clip at that point means every seek
-     * past the buffered edge stalls waiting on the network and leaves a stale
-     * frame on screen — which is exactly what glitching during a scrub looks
-     * like. Playback would tolerate it; seeking will not.
+     * Waiting for a full buffer was right about the hazard and wrong about the
+     * cure. Seeking past the buffered edge really does stall on a stale frame,
+     * but refusing to show anything until every byte lands means a minute of
+     * stills on a real connection. The seek is clamped to what is actually
+     * buffered instead, so a clip is scrubbable within a second or two and its
+     * range widens as the download fills in behind it.
      */
-    const buffered = () => {
-      const d = v.duration;
-      if (!d || Number.isNaN(d)) return false;
-      for (let i = 0; i < v.buffered.length; i++) {
-        if (v.buffered.start(i) <= 0.05 && v.buffered.end(i) >= d - 0.15) return true;
-      }
-      return false;
-    };
-
     let settled = false;
     const cleanup = () => {
       clearTimeout(timer);
-      v.removeEventListener("progress", check);
-      v.removeEventListener("canplaythrough", check);
       v.removeEventListener("loadeddata", check);
+      v.removeEventListener("canplay", check);
       v.removeEventListener("error", fail);
     };
     const ok = () => {
@@ -551,7 +543,7 @@ export function loadMotion(plate: Plate): Promise<HTMLVideoElement> {
       resolve(v);
     };
     const check = () => {
-      if (buffered()) ok();
+      if (v.readyState >= 2 && v.duration && !Number.isNaN(v.duration)) ok();
     };
     const fail = () => {
       if (settled) return;
@@ -562,16 +554,14 @@ export function loadMotion(plate: Plate): Promise<HTMLVideoElement> {
       reject(new Error(`could not load ${plate.motion}`));
     };
 
-    /* A slow connection should still get motion eventually rather than a still
-       forever — a partly buffered clip scrubs badly only in the part that has
-       not arrived, and it keeps filling in behind you. */
-    const timer = setTimeout(ok, 45000);
+    // a clip that never reports a frame must not stall the whole queue
+    const timer = setTimeout(fail, 20000);
 
-    v.addEventListener("progress", check);
-    v.addEventListener("canplaythrough", check);
     v.addEventListener("loadeddata", check);
+    v.addEventListener("canplay", check);
     v.addEventListener("error", fail);
     v.load();
   });
 }
+
 

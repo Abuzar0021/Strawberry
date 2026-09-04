@@ -10,7 +10,7 @@ import { SCENES, WORK } from "@/data/strawberry";
  *
  * Three copy groups share one window, handing over to each other while the
  * plate behind them holds. The vertical rule with its ticks is doing real work
- * — it is the only thing on screen that shows how far through the chapter you
+ * - it is the only thing on screen that shows how far through the chapter you
  * are, on a stage where the scrollbar is measuring a runway and not a document.
  */
 export function WorkScene() {

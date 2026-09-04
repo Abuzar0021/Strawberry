@@ -48,7 +48,7 @@ float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
-/* Value noise — only used to give the dissolve sweep a soft, uneven edge. */
+/* Value noise - only used to give the dissolve sweep a soft, uneven edge. */
 float noise(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
@@ -96,7 +96,7 @@ void main() {
      A circle opens from just above centre and the two plates counter-scale
      through it: the outgoing one rushes at the viewer while the incoming one
      blooms out of the point. The rim is broken by noise that drifts with
-     time, so the opening keeps crawling even when the scroll is still — that
+     time, so the opening keeps crawling even when the scroll is still - that
      is what makes it read as a portal rather than a wipe. */
   if (uTrans > 0.5 && uTrans < 1.5) {
     vec2 asp = vec2(uRes.x / uRes.y, 1.0);
@@ -302,7 +302,7 @@ export function createStage(canvas: HTMLCanvasElement) {
      *
      * The clip drives the slot from here on. Uploads are gated on
      * `requestVideoFrameCallback` so the texture is only rewritten when the
-     * decoder actually produces a frame — a 24fps clip on a 120Hz display
+     * decoder actually produces a frame - a 24fps clip on a 120Hz display
      * would otherwise be re-uploaded five times per frame it has.
      */
     setMotion(index: number, video: HTMLVideoElement, onFrame?: () => void) {
@@ -314,7 +314,7 @@ export function createStage(canvas: HTMLCanvasElement) {
       if (rvfc) {
         /* `onFrame` has to wake the host's render loop. A decoded frame that
            nobody draws is invisible, and on a scrubbed plate the loop is
-           asleep by the time a seek lands — so without this every frame on
+           asleep by the time a seek lands - so without this every frame on
            screen is one seek behind, and letting go of the wheel leaves you
            looking at a stale one. */
         const pump = () => {
@@ -334,8 +334,8 @@ export function createStage(canvas: HTMLCanvasElement) {
     /**
      * Appends an empty slot and returns its index.
      *
-     * Bridge clips are not plates — they belong to a handover rather than to a
-     * chapter — so they get their own slots past the end of the plate list
+     * Bridge clips are not plates - they belong to a handover rather than to a
+     * chapter - so they get their own slots past the end of the plate list
      * rather than being squeezed into it.
      */
     addSlot(groundHex: string) {

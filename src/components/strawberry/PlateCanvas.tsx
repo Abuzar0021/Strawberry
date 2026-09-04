@@ -7,13 +7,14 @@ import { loadPlate, loadMotion } from "@/lib/strawberryPlates";
 import { cueAt } from "@/lib/strawberryCues";
 import { subscribeStage, getStageProgress } from "@/hooks/strawberry/useStrawberryScrub";
 import { PLATES, PLATE_CUES } from "@/data/strawberry";
+import { markFilmReady, resetFilm } from "@/lib/strawberryLoad";
 
 /**
  * The painted plates behind everything.
  *
  * Two loads, in order. The stills go up first and are what the stage opens on;
  * the clips arrive afterwards and take over their slots one at a time. That
- * ordering is the whole design — the site is complete and correct from the
+ * ordering is the whole design - the site is complete and correct from the
  * first paint, and motion is something it gains, never something it waits for.
  *
  * Rendering is on demand. A settled still is a still image, and re-rasterising
@@ -40,6 +41,7 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
     }
 
     let alive = true;
+    resetFilm();
     let dirty = true;
     let dissolving = false;
     let playing = false;
@@ -50,7 +52,7 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
      *
      * The clips are 50-odd megabytes. On a phone that is a background effect
      * costing more than most whole websites, so handhelds, metered connections
-     * and reduced-motion all keep the stills — which are the finished artwork
+     * and reduced-motion all keep the stills - which are the finished artwork
      * and look complete on their own.
      */
     const wantsFilm = () => {
@@ -124,7 +126,7 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
      *
      * This is a pipeline, not a fire-and-forget. Only one seek can be in flight
      * on a video element, and assigning `currentTime` during one throws the
-     * decode away and starts over — so a continuous scroll that issued a seek
+     * decode away and starts over - so a continuous scroll that issued a seek
      * per frame would spend all its time cancelling itself.
      *
      * But simply dropping a request while busy loses the newest position, and
@@ -143,9 +145,19 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
         if (since === undefined || performance.now() - since < STALE_SEEK_MS) return;
         seeking.delete(i);   // the seek was lost; take the slot back
       }
-      const target = wanted[i];
+      let target = wanted[i];
       if (target === undefined) return;
-      // one frame at 12fps — below this the seek would land on the same frame
+
+      /* Clamp to the downloaded range. Seeking past the buffered edge does not
+         fail, it stalls on a stale frame, which is what glitching looks like.
+         Scrubbing therefore covers only what has arrived and widens as the
+         rest lands, instead of the clip being unusable until it is complete. */
+      let end = 0;
+      for (let k = 0; k < v.buffered.length; k++) {
+        if (v.buffered.start(k) <= target) end = Math.max(end, v.buffered.end(k));
+      }
+      if (end > 0.2) target = Math.min(target, end - 0.1);
+      // one frame at 12fps - below this the seek would land on the same frame
       if (Math.abs(v.currentTime - target) < 1 / 12) return;
       seeking.add(i);
       seekedAt.set(i, performance.now());
@@ -217,7 +229,7 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
       /* A bridge is a filmed handover, but it is generated separately from the
          plate clips either side of it, so its first and last frames do not
          match theirs exactly. Cutting straight into it and straight out again
-         shows that mismatch as a jump — which is what the cut at the head of
+         shows that mismatch as a jump - which is what the cut at the head of
          the Work chapter was.
 
          So it is eased in and out: a short crossfade from the outgoing plate
@@ -257,7 +269,7 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
     });
 
     /* Read-only probe. The clips live outside the DOM, so without this there is
-       no way to tell a frozen clip from a moving one — the camera keeps
+       no way to tell a frozen clip from a moving one - the camera keeps
        drifting either way, which is exactly how a freeze went unnoticed. */
     (window as unknown as { stageClipTimes?: () => (number | null)[] }).stageClipTimes = () =>
       clips.map((c) => (c ? +c.currentTime.toFixed(3) : null));
@@ -284,7 +296,7 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
     void Promise.all(PLATES.map((p) => loadPlate(p)))
       .then((sources) => {
         if (!alive || !stage) return;
-        // the plate's measured tone, not its token — see Plate.tone
+        // the plate's measured tone, not its token - see Plate.tone
         stage.setPlates(sources.map((source, i) => ({ source, ground: PLATES[i].tone })));
         dirty = true;
         return loadClips().then(loadBridges);
@@ -330,7 +342,8 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
      * means whatever you are actually looking at is fetched next.
      */
     async function loadClips() {
-      if (!wantsFilm()) return;
+      // nothing to wait for when the stills are the whole design
+      if (!wantsFilm()) return markFilmReady();
 
       const pending = new Set<number>();
       PLATES.forEach((pl, i) => {
@@ -338,42 +351,47 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
       });
       bridges.forEach((_, i) => pending.add(PLATES.length + i));
 
-      while (pending.size && alive) {
+      const cueOf = (i: number) =>
+        i < PLATES.length
+          ? PLATE_CUES.find((c) => c.plate === PLATES[i].id)?.at ?? 0
+          : PLATE_CUES.find((c) => c.bridge === bridges[i - PLATES.length])?.at ?? 0;
+
+      /** The pending clip whose cue is nearest the playhead right now. */
+      const nearest = () => {
         const here = getStageProgress();
-        // distance from the playhead to each candidate's own cue
         let best = -1;
         let bestD = Infinity;
         for (const i of pending) {
-          const at =
-            i < PLATES.length
-              ? PLATE_CUES.find((c) => c.plate === PLATES[i].id)?.at ?? 0
-              : PLATE_CUES.find((c) => c.bridge === bridges[i - PLATES.length])?.at ?? 0;
-          const d = Math.abs(at - here);
+          const d = Math.abs(cueOf(i) - here);
           if (d < bestD) {
             bestD = d;
             best = i;
           }
         }
-        pending.delete(best);
+        return best;
+      };
 
+      const one = async (i: number) => {
         try {
-          if (best < PLATES.length) {
-            const v = await loadMotion(PLATES[best]);
+          if (i < PLATES.length) {
+            const v = await loadMotion(PLATES[i]);
             if (!alive) {
               v.removeAttribute("src");
               v.load();
               return;
             }
-            clips[best] = v;
+            clips[i] = v;
             /* Without this the clip seeks exactly once and then freezes: `pump`
                marks the slot as seeking and only `onSettled` clears it, so a
                missing listener means every later seek is skipped silently. */
-            v.addEventListener("seeked", () => onSettled(best, v));
-            stage?.setMotion(best, v, () => {
+            v.addEventListener("seeked", () => onSettled(i, v));
+            stage?.setMotion(i, v, () => {
               dirty = true;
             });
+            // the opening plate moving is the only thing the loader waits on
+            if (i === 0) markFilmReady();
           } else {
-            const bi = best - PLATES.length;
+            const bi = i - PLATES.length;
             const v = await loadMotion({ motion: bridges[bi] } as never);
             if (!alive) {
               v.removeAttribute("src");
@@ -382,17 +400,37 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
             }
             bridgeClips[bi] = v;
             const slot = bridgeSlot.get(bridges[bi]);
-            if (slot !== undefined)
+            if (slot !== undefined) {
+              v.addEventListener("seeked", () => onSettled(slot, v));
               stage?.setMotion(slot, v, () => {
                 dirty = true;
               });
+            }
           }
           audition();
           dirty = true;
         } catch {
           /* no clip for this one; the still stands */
         }
-      }
+      };
+
+      /* Three at a time. Strictly sequential was the right priority order and
+         the wrong throughput — one request at a time leaves most of the
+         connection idle, and the last clip landed a minute in. Priority is
+         re-read every time a lane frees, so whatever you are looking at is
+         still fetched first. */
+      const LANES = 3;
+      const lanes: Promise<void>[] = [];
+      const run = async () => {
+        while (alive && pending.size) {
+          const i = nearest();
+          if (i < 0) return;
+          pending.delete(i);
+          await one(i);
+        }
+      };
+      for (let k = 0; k < LANES; k++) lanes.push(run());
+      await Promise.all(lanes);
     }
 
     return () => {

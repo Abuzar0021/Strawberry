@@ -20,8 +20,8 @@ const STEP = 360 / FAQ.length;
 /**
  * Chapter four: the questions, on a ring.
  *
- * The cards are placed with real depth — `translateZ` out to a radius, then a
- * counter-rotation so each one still faces the viewer — and the ones at the back
+ * The cards are placed with real depth - `translateZ` out to a radius, then a
+ * counter-rotation so each one still faces the viewer - and the ones at the back
  * are blurred and dimmed. A flat carousel that cross-faded five positions would
  * need the same amount of code and would read as a slideshow; this reads as an
  * object being turned, which is the only reason to spend a 3D context on it.

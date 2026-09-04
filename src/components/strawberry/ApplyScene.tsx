@@ -26,9 +26,9 @@ export function ApplyScene() {
     const name = String(data.get("name") ?? "").trim();
     const email = String(data.get("email") ?? "").trim();
     const grow = String(data.get("grow") ?? "").trim();
-    const body = `${grow}\n\n— ${name}${email ? ` (${email})` : ""}`;
+    const body = `${grow}\n\n- ${name}${email ? ` (${email})` : ""}`;
     window.location.href = `mailto:${BRAND.email}?subject=${encodeURIComponent(
-      `Partnership application — ${name || "no name given"}`
+      `Partnership application - ${name || "no name given"}`
     )}&body=${encodeURIComponent(body)}`;
     setSent(true);
   };

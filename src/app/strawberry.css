@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 /* ============================================================
-   PEAR — design tokens
+   PEAR - design tokens
 
    Two grounds and one ink. Every surface on this site is either a
    painted plate or a flat colour sampled out of one, so the palette
-   below is not a set of UI colours — it is the set of colours the
+   below is not a set of UI colours - it is the set of colours the
    artwork already resolves to at its edges. Copy chooses cream or
    ink depending on which ground it happens to be standing on, and
    nothing else in the system carries a hue.
@@ -25,7 +25,7 @@
   --paper: #f2f1ed;
   --cream: #fffaea;
 
-  /* grounds — these match the plate edges in src/lib/pearPlates.ts */
+  /* grounds - these match the plate edges in src/lib/pearPlates.ts */
   --cobalt: #0a5f9e;
   --azure: #0b7baa;
   --bone: #dcdcd2;
@@ -119,7 +119,7 @@ body {
 /* Only the controls inside a layer take the pointer. This has to sit on the
    layer itself, not on its children: a layer is a full-viewport absolute box
    stacked over the chapter rail, so leaving it hit-testable makes the rail
-   unclickable everywhere the two overlap — which is everywhere. */
+   unclickable everywhere the two overlap - which is everywhere. */
 .layer {
   pointer-events: none;
 }
@@ -151,7 +151,7 @@ body {
   .t-display {
     font-family: var(--font-display);
     font-weight: 300;
-    /* tracking tightens as the type grows — the one rule the reference
+    /* tracking tightens as the type grows - the one rule the reference
        applies consistently across its whole display range */
     letter-spacing: -0.026em;
     line-height: 1.04;
@@ -199,7 +199,7 @@ body {
     margin: 0;
   }
 
-  /* Running copy. Short measure, tight leading — it is a caption to the
+  /* Running copy. Short measure, tight leading - it is a caption to the
      painting, not an essay. */
   .t-stand {
     font-family: var(--font-text);
@@ -249,7 +249,7 @@ body {
 }
 
 /* ============================================================
-   Chrome — header, chapter rail, hairline grid
+   Chrome - header, chapter rail, hairline grid
    ============================================================ */
 
 .hair {
@@ -401,7 +401,7 @@ body {
   position: relative;
   overflow: hidden;
 }
-/* A wash crosses the face on hover instead of the button changing colour —
+/* A wash crosses the face on hover instead of the button changing colour -
    nothing on this site has a hover state that swaps a fill. */
 .cta::after {
   content: "";
@@ -427,7 +427,7 @@ body {
 /* ============================================================
    Scene: the questions carousel
 
-   Five cards on a cylinder. Depth is real — the cards are placed with
+   Five cards on a cylinder. Depth is real - the cards are placed with
    translateZ and the ones at the back are blurred, so turning the ring
    reads as rotation rather than as a fade between five positions.
    ============================================================ */
@@ -685,7 +685,7 @@ body {
   }
 }
 
-/* On a handheld the copy column takes the full width — there is no room
+/* On a handheld the copy column takes the full width - there is no room
    beside the artwork for it to sit in. */
 @media (max-width: 767px) {
   :root {
@@ -710,8 +710,8 @@ body {
 /* ============================================================
    Scene: the work
 
-   Three things share this frame — a figure, a measure and a copy
-   group — and they must never touch. Positioning them from classes
+   Three things share this frame - a figure, a measure and a copy
+   group - and they must never touch. Positioning them from classes
    rather than inline styles is what lets the breakpoint move them;
    an inline `left` would win over any media query.
    ============================================================ */
@@ -767,4 +767,70 @@ body {
 }
 [data-still="1"] .work-measure {
   display: none;
+}
+
+/* ============================================================
+   The opening hold
+
+   Sits over the stage until the first plate's clip can move, then
+   fades out and is removed. It paints the same ground the hero
+   plate resolves to, so the handoff is a fade rather than a change
+   of scene.
+   ============================================================ */
+
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1.1rem;
+  background: #1a5380;
+  color: var(--cream);
+  transition: opacity 0.65s var(--ease);
+}
+.loader[data-ready="1"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loader-word {
+  margin: 0;
+  font-size: clamp(2.25rem, 8vw, 6rem);
+  opacity: 0.96;
+}
+
+.loader-sub {
+  margin: 0;
+  opacity: 0.6;
+}
+
+/* A rule that fills rather than a spinner: it reads as something ripening
+   rather than something buffering. */
+.loader-rule {
+  display: block;
+  width: min(220px, 40vw);
+  height: 1px;
+  background: rgb(255 255 255 / 0.22);
+  position: relative;
+  overflow: hidden;
+}
+.loader-rule::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--cream);
+  transform-origin: left;
+  animation: loaderFill 2.4s var(--ease) infinite;
+}
+@keyframes loaderFill {
+  0% { transform: scaleX(0); opacity: 0.9; }
+  70% { transform: scaleX(1); opacity: 0.9; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+
+/* Reduced motion never loads a clip, so it never waits for one. */
+@media (prefers-reduced-motion: reduce) {
+  .loader { display: none; }
 }
