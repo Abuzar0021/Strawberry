@@ -12,7 +12,11 @@ import {
   type Sequence,
 } from "@/lib/strawberrySequence";
 import { cueAt } from "@/lib/strawberryCues";
-import { subscribeStage, getStageProgress } from "@/hooks/strawberry/useStrawberryScrub";
+import {
+  getStageProgress,
+  onStageFrame,
+  subscribeStage,
+} from "@/hooks/strawberry/useStrawberryScrub";
 import { PLATES, PLATE_CUES, FRAMES } from "@/data/strawberry";
 import { markFilmReady, resetFilm } from "@/lib/strawberryLoad";
 
@@ -232,13 +236,18 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
       }
     });
 
-    const tick = () => {
+    /* Drawn from the playhead's own clock, immediately after it has been
+       published, so the picture on screen is the position the page is at rather
+       than the one it was at two frames ago. A settled plate is a still image,
+       and re-rasterising a full-viewport shader sixty times a second to show
+       the same pixels is the kind of cost that only ever surfaces as a warm
+       laptop - so nothing is drawn unless something moved. */
+    const unhook = onStageFrame(() => {
       if (!alive || !stage) return;
       if (!dirty && !dissolving) return;
       stage.render(state, gsap.ticker.time);
       dirty = dissolving;
-    };
-    gsap.ticker.add(tick);
+    });
 
     /* Slots exist before anything has been downloaded.
        Each opens on its chapter's own ground colour, so the page is a finished
@@ -360,8 +369,8 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
     return () => {
       alive = false;
       unsub();
+      unhook();
       ro.disconnect();
-      gsap.ticker.remove(tick);
       stage.destroy();
     };
   }, [onUnavailable]);

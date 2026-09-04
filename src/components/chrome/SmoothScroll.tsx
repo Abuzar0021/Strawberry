@@ -16,9 +16,12 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
     if (reduced) return;
 
     const lenis = new Lenis({
-      duration: 1.05,
-      // long, shallow tail: physical without feeling like the page is on a delay
-      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      /* Light. The stage's own spring is what smooths the scroll now, and two
+         filters in series only stack their latency - together they had the
+         plates trailing a long way behind the hand that was moving them. This
+         is here to normalise wheel and key input into one stream, not to add
+         weight of its own. */
+      lerp: 0.25,
       touchMultiplier: 1.6,
       syncTouch: false,
     });
@@ -26,8 +29,12 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
     registerLenis(lenis);
     lenis.on("scroll", ScrollTrigger.update);
 
+    /* First in the frame, ahead of anything that reads the scroll position.
+       GSAP runs its callbacks in the order they were added and React runs
+       effects children first, so without this the scroll advanced *after*
+       everything that had already drawn against it. */
     const raf = (time: number) => lenis.raf(time * 1000);
-    gsap.ticker.add(raf);
+    gsap.ticker.add(raf, false, true);
     gsap.ticker.lagSmoothing(0);
 
     // Layout is measured from text metrics, and those change the moment the

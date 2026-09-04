@@ -17,11 +17,20 @@ export const BRAND = {
 } as const;
 
 /**
- * How tall the runway is, in viewport heights. The source runs 5350vh; the
- * scenes below are authored against a normalised playhead, so this is a single
- * pacing dial - raising it slows every scene by the same proportion.
+ * How tall the runway is, in viewport heights.
+ *
+ * Every scene below is authored against a normalised playhead, so this is one
+ * dial for the pace of the whole site. At 4800 the nine chapters were spread
+ * over forty-eight screen-heights - close to four hundred wheel notches end to
+ * end, and five or six screens of scrolling to get through a single plate and
+ * two paragraphs. Each chapter was well made and there was simply too much
+ * turning between them.
+ *
+ * 3600 keeps every relative proportion and gives back a quarter of the
+ * distance. Frames land about 43px of scroll apart at that pace, which the
+ * renderer blends across, so nothing is coarser for it.
  */
-export const RUNWAY_VH = 4800;
+export const RUNWAY_VH = 3600;
 
 export type Ground = "cobalt" | "azure" | "bone" | "night";
 

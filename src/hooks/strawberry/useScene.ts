@@ -33,6 +33,8 @@ export function useScene<T extends HTMLElement>(
     const fade = opts.fade ?? 0.16;
     const fadeIn = opts.fadeIn ?? fade;
     let wasVisible: boolean | null = null;
+    let lastAlpha = -1;
+    let lastY = NaN;
 
     return subscribeStage((p) => {
       // In document mode the layer is laid out by CSS and must be left alone.
@@ -49,8 +51,22 @@ export function useScene<T extends HTMLElement>(
       if (!visible) return;
 
       const t = within(p, range);
-      el.style.opacity = String(alpha);
-      el.style.transform = `translate3d(0, ${(0.5 - t) * drift}px, 0)`;
+
+      /* Quantised, and only written when it actually changes.
+         Opacity to a thousandth and the drift to a tenth of a pixel are both
+         well under what a screen can show, and every write past that is a style
+         invalidation and a string allocation on every frame of every visible
+         layer. It costs nothing on a desktop and it is real work on a phone. */
+      const a = Math.round(alpha * 1000) / 1000;
+      const y = Math.round((0.5 - t) * drift * 10) / 10;
+      if (a !== lastAlpha) {
+        lastAlpha = a;
+        el.style.opacity = String(a);
+      }
+      if (y !== lastY) {
+        lastY = y;
+        el.style.transform = `translate3d(0, ${y}px, 0)`;
+      }
       frame.current?.({ t, alpha, el });
     });
     // ranges are module constants; re-subscribing on every render would churn
