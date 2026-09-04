@@ -5,9 +5,8 @@ import { gsap } from "@/lib/gsap";
 import { createStage, type Stage } from "@/lib/strawberryGL";
 import { loadPlate } from "@/lib/strawberryPlates";
 import {
-  coarseCount,
   createSequence,
-  fetchOrder,
+  fetchGenerations,
   framePairAt,
   loadFrame,
   type Sequence,
@@ -296,12 +295,19 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
           ? PLATE_CUES.find((c) => c.plate === PLATES[slot].id)?.at ?? 0
           : PLATE_CUES.find((c) => bridgeSlot.get(c.bridge ?? "") === slot)?.at ?? 0;
 
-      /* Two passes over every sequence. The first takes a strided handful from
-         each - about ten frames - which is already enough to scrub that clip
-         end to end; only then does the second fill in between them. Perfecting
-         one clip before starting the next would leave the later chapters with
-         nothing at all while the first was being finished, and the reader can
-         be in chapter seven within a second of arriving. */
+      /* Every clip is refined a generation at a time, and a generation is
+         finished across all twelve before the next one starts. The first is a
+         handful of frames strided over each clip - seventy-eight images in
+         total, about six megabytes - and that alone makes the entire runway
+         scrubbable end to end. Perfecting one clip before starting the next
+         would leave the later chapters with nothing at all while the first was
+         being finished, and a reader can be in chapter seven a second after
+         arriving. */
+      const gens = new Map(plan.map(({ slot }) => [slot, fetchGenerations(seqs[slot]!.n)]));
+      const depth = Math.max(...[...gens.values()].map((g) => g.length));
+      /* How far to refine. Each tier stops at the point where more frames stop
+         buying motion and start only buying grain. */
+      const last = want === "opening" ? 0 : want === "coarse" ? 1 : depth - 1;
       const queue = new Map<number, number[]>();
 
       const nextJob = () => {
@@ -325,35 +331,29 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
       };
 
       const LANES = 8;
-      const drain = async () => {
-        const run = async () => {
-          for (let job = nextJob(); alive && job; job = nextJob()) {
-            const seq = seqs[job.slot];
-            if (!seq) continue;
-            await loadFrame(seq, job.i);
-            if (!alive) return;
-            // only what is on screen is worth a texture upload
-            if (live.has(job.slot)) show(job.slot);
-            if (job.slot === 0) markFilmReady();
-          }
-        };
-        await Promise.all(Array.from({ length: LANES }, run));
+      const run = async () => {
+        for (let job = nextJob(); alive && job; job = nextJob()) {
+          const seq = seqs[job.slot];
+          if (!seq) continue;
+          await loadFrame(seq, job.i);
+          if (!alive) return;
+          // only what is on screen is worth a texture upload
+          if (live.has(job.slot)) show(job.slot);
+          if (job.slot === 0) markFilmReady();
+        }
       };
 
-      for (const { slot } of plan) {
-        const seq = seqs[slot]!;
-        queue.set(slot, fetchOrder(seq.n).slice(0, coarseCount(seq.n)));
+      for (let g = 0; g < depth; g++) {
+        queue.clear();
+        for (const { slot } of plan) {
+          const gen = gens.get(slot)![g];
+          if (gen?.length) queue.set(slot, [...gen]);
+        }
+        if (!queue.size) continue;
+        await Promise.all(Array.from({ length: LANES }, run));
+        markFilmReady();
+        if (g >= last) return;
       }
-      await drain();
-      markFilmReady();
-
-      if (want !== "all") return;
-
-      for (const { slot } of plan) {
-        const seq = seqs[slot]!;
-        queue.set(slot, fetchOrder(seq.n).slice(coarseCount(seq.n)));
-      }
-      await drain();
       markFilmReady();
     }
 

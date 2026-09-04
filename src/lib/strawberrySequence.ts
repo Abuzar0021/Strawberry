@@ -43,42 +43,39 @@ export const framePath = (base: string, i: number) =>
   `/strawberry/frames/${base}/${String(i).padStart(3, "0")}.webp`;
 
 /**
- * The order frames are fetched in.
+ * The order frames are fetched in, split into generations.
  *
- * A coarse pass first - every `stride`-th frame - so a handful of images makes
- * the whole clip scrubbable end to end. Then the stride halves, and halves
- * again, until every frame is accounted for. Refining by bisection rather than
- * filling left to right keeps the clip evenly sharp at every moment: the
- * alternative gives you a silky opening and a stuttering ending for as long as
- * the download lasts.
+ * The first generation is a handful of frames strided across the whole clip -
+ * enough to scrub it end to end on its own. Each generation after that halves
+ * the stride, so the clip refines evenly rather than sharpening from the left
+ * while its ending still steps. The caller drains one generation across every
+ * clip before starting the next, which is what stops the opening chapter being
+ * perfected while the closing one has nothing at all.
+ *
+ * A generation is the unit deliberately: the gap between "the first chapter
+ * moves" and "every chapter moves" is the whole of a visitor's patience, and
+ * halving the first download halves that gap.
  */
-export function fetchOrder(n: number, coarse = 8): number[] {
-  const out: number[] = [];
+export function fetchGenerations(n: number, coarse = 5): number[][] {
+  if (n <= 0) return [];
   const seen = new Set<number>();
-  const push = (i: number) => {
-    if (i >= 0 && i < n && !seen.has(i)) {
-      seen.add(i);
-      out.push(i);
-    }
+  const gens: number[][] = [];
+
+  const take = (stride: number) => {
+    const gen: number[] = [];
+    for (let i = 0; i < n; i += stride) if (!seen.has(i)) (seen.add(i), gen.push(i));
+    if (!seen.has(n - 1)) (seen.add(n - 1), gen.push(n - 1));
+    if (gen.length) gens.push(gen);
   };
 
   let stride = Math.max(1, Math.floor(n / coarse));
-  for (let i = 0; i < n; i += stride) push(i);
-  push(n - 1);
-  while (stride > 1) {
-    stride = Math.max(1, stride >> 1);
-    for (let i = 0; i < n; i += stride) push(i);
-  }
-  for (let i = 0; i < n; i++) push(i);
-  return out;
-}
+  take(stride);
+  while (stride > 1) take((stride = Math.max(1, stride >> 1)));
 
-/** How many entries at the head of `fetchOrder` make up the coarse pass. */
-export function coarseCount(n: number, coarse = 8): number {
-  if (n <= 0) return 0;
-  const stride = Math.max(1, Math.floor(n / coarse));
-  // the strided walk, plus the last frame when the walk does not land on it
-  return Math.min(n, Math.floor((n - 1) / stride) + 1 + ((n - 1) % stride ? 1 : 0));
+  const rest: number[] = [];
+  for (let i = 0; i < n; i++) if (!seen.has(i)) rest.push(i);
+  if (rest.length) gens.push(rest);
+  return gens;
 }
 
 export function loadFrame(seq: Sequence, i: number): Promise<void> {
