@@ -396,6 +396,20 @@ export function createStage(canvas: HTMLCanvasElement) {
       }
     },
 
+    /**
+     * Forget what a slot is holding.
+     *
+     * Needed when a frame is replaced by a sharper copy of the same frame: the
+     * index has not changed, so nothing downstream would otherwise notice there
+     * are new pixels to send.
+     */
+    invalidate(index: number) {
+      const slot = slots[index];
+      if (!slot) return;
+      slot.ia = -1;
+      slot.ib = -1;
+    },
+
     resize(cssW: number, cssH: number, dpr: number) {
       const w = Math.max(1, Math.round(cssW * dpr));
       const h = Math.max(1, Math.round(cssH * dpr));

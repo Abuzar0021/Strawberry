@@ -23,10 +23,23 @@ export type Sequence = {
   ib: number;
   frac: number;
   loaded: number;
+  /** Which frames have been replaced by their sharp version, and how many. */
+  hi: boolean[];
+  sharp: number;
 };
 
 export function createSequence(base: string, n: number): Sequence {
-  return { base, n, imgs: new Array(n).fill(null), ia: -1, ib: -1, frac: 0, loaded: 0 };
+  return {
+    base,
+    n,
+    imgs: new Array(n).fill(null),
+    hi: new Array(n).fill(false),
+    ia: -1,
+    ib: -1,
+    frac: 0,
+    loaded: 0,
+    sharp: 0,
+  };
 }
 
 /** The two frames a position falls between, and how far between them it is. */
@@ -38,9 +51,20 @@ export type Pair = {
   frac: number;
 };
 
-/** Where a frame lives. Also used by the layout to preload the opening ones. */
-export const framePath = (base: string, i: number) =>
-  `/strawberry/frames/${base}/${String(i).padStart(3, "0")}.webp`;
+/**
+ * Where a frame lives.
+ *
+ * Every frame exists twice. The light one is 640px, which is native on a phone
+ * and a little soft on a desktop, and the whole film of them is 15MB - four
+ * times lighter than the sharp set, so it is complete and scrubbing while the
+ * sharp set would still be arriving. The sharp one is 1280px and replaces it in
+ * place afterwards, on screens wide enough to tell.
+ *
+ * That ordering is the point. A sharp frame that has not downloaded is not a
+ * sharp frame, it is a missing one, and a missing frame is what choppy means.
+ */
+export const framePath = (base: string, i: number, sharp = false) =>
+  `/strawberry/frames/${base}/${sharp ? "hi/" : ""}${String(i).padStart(3, "0")}.webp`;
 
 /**
  * The order frames are fetched in, split into generations.
@@ -78,15 +102,21 @@ export function fetchGenerations(n: number, coarse = 5): number[][] {
   return gens;
 }
 
-export function loadFrame(seq: Sequence, i: number): Promise<void> {
+export function loadFrame(seq: Sequence, i: number, sharp = false): Promise<void> {
   return new Promise((resolve) => {
-    if (seq.imgs[i]) return resolve();
+    // a light frame is worth loading only if nothing is there; a sharp one is
+    // worth loading unless the sharp one is already there
+    if (sharp ? seq.hi[i] : seq.imgs[i]) return resolve();
     const img = new Image();
     img.decoding = "async";
-    img.src = framePath(seq.base, i);
+    img.src = framePath(seq.base, i, sharp);
     const done = () => {
+      if (!seq.imgs[i]) seq.loaded++;
       seq.imgs[i] = img;
-      seq.loaded++;
+      if (sharp && !seq.hi[i]) {
+        seq.hi[i] = true;
+        seq.sharp++;
+      }
       resolve();
     };
     img

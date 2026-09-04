@@ -82,8 +82,12 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
     const live = new Set<number>([0]);
 
     const dpr = () => Math.min(window.devicePixelRatio || 1, 1.5);
+    /** Width of the drawing buffer in device pixels, which is what decides
+        whether a sharper set of frames has anywhere to go. */
+    let canvasPx = 0;
     const fit = () => {
       const r = el.getBoundingClientRect();
+      canvasPx = r.width * dpr();
       stage?.resize(r.width, r.height, dpr());
       dirty = true;
     };
@@ -156,7 +160,13 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
     const probe = window as unknown as {
       playhead?: number;
       stageClipTimes?: () => (number | null)[];
-      stageFilm?: () => { shown: number; loaded: number; n: number; live: boolean }[];
+      stageFilm?: () => {
+        shown: number;
+        loaded: number;
+        sharp: number;
+        n: number;
+        live: boolean;
+      }[];
     };
     const positionOf = (s: Sequence | null) =>
       !s || s.ia < 0 ? null : s.ia + (s.ib > s.ia ? (s.ib - s.ia) * s.frac : 0);
@@ -165,6 +175,7 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
       seqs.map((s, i) => ({
         shown: positionOf(s ?? null) ?? -1,
         loaded: s?.loaded ?? 0,
+        sharp: s?.sharp ?? 0,
         n: s?.n ?? 0,
         live: live.has(i),
       }));
@@ -340,30 +351,50 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
       };
 
       const LANES = 8;
-      const run = async () => {
+      const run = (sharp: boolean) => async () => {
         for (let job = nextJob(); alive && job; job = nextJob()) {
           const seq = seqs[job.slot];
           if (!seq) continue;
-          await loadFrame(seq, job.i);
+          await loadFrame(seq, job.i, sharp);
           if (!alive) return;
           // only what is on screen is worth a texture upload
-          if (live.has(job.slot)) show(job.slot);
+          if (live.has(job.slot)) {
+            // a sharper copy of a frame already on the GPU carries the same
+            // index, so the slot has to be told to look again
+            if (sharp) stage?.invalidate(job.slot);
+            show(job.slot);
+          }
           if (job.slot === 0) markFilmReady();
         }
       };
 
-      for (let g = 0; g < depth; g++) {
-        queue.clear();
-        for (const { slot } of plan) {
-          const gen = gens.get(slot)![g];
-          if (gen?.length) queue.set(slot, [...gen]);
+      const sweep = async (sharp: boolean) => {
+        for (let g = 0; g < depth; g++) {
+          queue.clear();
+          for (const { slot } of plan) {
+            const gen = gens.get(slot)![g];
+            if (gen?.length) queue.set(slot, [...gen]);
+          }
+          if (!queue.size) continue;
+          await Promise.all(Array.from({ length: LANES }, run(sharp)));
+          markFilmReady();
+          // true only when the sweep actually reached the end, rather than
+          // stopping at the depth this connection was allotted
+          if (g >= last) return g >= depth - 1;
         }
-        if (!queue.size) continue;
-        await Promise.all(Array.from({ length: LANES }, run));
-        markFilmReady();
-        if (g >= last) return;
-      }
+        return true;
+      };
+
+      const whole = await sweep(false);
       markFilmReady();
+
+      /* The sharp set only goes to screens that can show it.
+         A phone's canvas is under 650px after the pixel-ratio cap, so the light
+         film is already at or above native there and the sharp one would be
+         sixty-six megabytes of pixels it cannot draw. */
+      if (!whole || !alive) return;
+      if (canvasPx < 800) return;
+      await sweep(true);
     }
 
     return () => {
