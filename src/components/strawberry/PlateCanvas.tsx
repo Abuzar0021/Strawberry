@@ -89,35 +89,37 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
     fit();
 
     /**
-     * What this connection should fetch.
+     * How much film this connection should fetch.
      *
-     * Screen size is deliberately not a reason to refuse. A phone on wifi takes
-     * these perfectly well, and refusing every narrow viewport made the point of
-     * the site invisible on the device most people open it on.
+     * Screen size is deliberately not part of it. A phone on wifi takes these
+     * perfectly well, and refusing every narrow viewport made the point of the
+     * site invisible on the device most people open it on.
      *
-     * `effectiveType` is not a reason to refuse either, which cost an hour to
-     * learn: it is a rolling estimate of recent throughput, not a property of
-     * the link, and Chrome will call a perfectly good connection "3g" after a
-     * heavy page. Treating that as a veto left the plates as stills on hardware
-     * that could have run the whole thing. So the only outright refusals are the
-     * ones the user actually asked for - reduced motion, data saver - and links
-     * slow enough that the download would outlast the visit.
+     * `effectiveType` is not a veto either, which cost an hour to learn: it is
+     * a rolling estimate of recent throughput, not a property of the link, and
+     * Chrome will call a good connection "3g" - or "2g", under load - right
+     * after it has finished downloading something heavy. Treating that as a
+     * refusal left the plates as stills on hardware that could have run the
+     * whole thing, and it did so intermittently, which is worse.
      *
-     * A merely slow link gets the coarse pass and stops there: about ten frames
-     * per chapter, nine megabytes, and every chapter scrubs. It is the same site
-     * with a coarser grain, which is a far better trade than nine still images.
+     * So it scales the download instead of gating it. Every tier below the top
+     * one still moves; they differ in how fine the grain is, which the pair
+     * blend renders as softness rather than as stepping.
      */
-    const link = () =>
-      (navigator as { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
-
-    const wantsFilm = () => {
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
-      const c = link();
-      if (c?.saveData) return false;
-      return !(c?.effectiveType && /(^|-)(2g|slow)/.test(c.effectiveType));
+    const film = (): "none" | "opening" | "coarse" | "all" => {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return "none";
+      const c = (navigator as { connection?: { saveData?: boolean; effectiveType?: string } })
+        .connection;
+      // the only outright refusals are the ones the reader asked for
+      if (c?.saveData) return "none";
+      const type = c?.effectiveType ?? "";
+      // roughly 300KB, and already preloaded by the document: the opening
+      // chapter moves and the rest stay paintings
+      if (/(^|-)(2g|slow)/.test(type)) return "opening";
+      // about ten frames a chapter, nine megabytes, whole runway scrubbing
+      if (/(^|-)3g/.test(type)) return "coarse";
+      return "all";
     };
-
-    const wantsEveryFrame = () => !/(^|-)3g/.test(link()?.effectiveType ?? "");
 
     /**
      * Positions a slot's sequence where the playhead is asking for.
@@ -272,15 +274,20 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
     ).catch(() => {});
 
     async function loadSequences() {
-      if (!wantsFilm()) return markFilmReady();
+      const want = film();
+      if (want === "none") return markFilmReady();
 
       const plan: { slot: number; base: string }[] = [];
       PLATES.forEach((p, i) => {
         if (p.film && FRAMES[p.film]) plan.push({ slot: i, base: p.film });
       });
-      for (const base of bridges) {
-        const slot = bridgeSlot.get(base);
-        if (slot !== undefined && FRAMES[base]) plan.push({ slot, base });
+      if (want !== "opening") {
+        for (const base of bridges) {
+          const slot = bridgeSlot.get(base);
+          if (slot !== undefined && FRAMES[base]) plan.push({ slot, base });
+        }
+      } else {
+        plan.length = Math.min(plan.length, 1);
       }
       for (const { slot, base } of plan) seqs[slot] = createSequence(base, FRAMES[base]);
 
@@ -340,7 +347,7 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
       await drain();
       markFilmReady();
 
-      if (!wantsEveryFrame()) return;
+      if (want !== "all") return;
 
       for (const { slot } of plan) {
         const seq = seqs[slot]!;
