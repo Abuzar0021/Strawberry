@@ -357,6 +357,11 @@ body {
 /* The rail counts chapters down the left edge and is the only persistent
    navigation. Ticks are drawn, not listed, so it reads as an instrument. */
 .rail {
+  /* The rail is the only chrome that sits over the middle of a plate rather
+     than in the copy column, and over the canopy it was tracked 11px type on
+     bright foliage. A shadow in the ground colour is enough - a scrim here
+     would put a rectangle down the edge of every chapter. */
+  text-shadow: 0 1px 9px rgb(4 12 20 / 0.75), 0 0 3px rgb(4 12 20 / 0.6);
   transition: opacity 0.5s var(--ease);
   position: absolute;
   left: var(--v1);
@@ -376,19 +381,26 @@ body {
   padding: 0;
   cursor: pointer;
   color: var(--fg);
-  opacity: 0.45;
+  opacity: 0.58;
   transition: opacity 0.4s var(--ease);
 }
 .rail button[data-on="1"],
 .rail button:hover {
   opacity: 1;
 }
+[data-ink="ink"] .rail {
+  text-shadow: 0 1px 9px rgb(246 244 236 / 0.8), 0 0 3px rgb(246 244 236 / 0.65);
+}
 .rail .tick {
   display: block;
   width: 12px;
   height: 1px;
   background: currentColor;
+  box-shadow: 0 0 6px rgb(4 12 20 / 0.6);
   transition: width 0.45s var(--ease);
+}
+[data-ink="ink"] .rail .tick {
+  box-shadow: 0 0 6px rgb(246 244 236 / 0.7);
 }
 .rail button[data-on="1"] .tick {
   width: 30px;
