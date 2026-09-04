@@ -1,7 +1,7 @@
 import { PLATE_CUES, PLATES, PLATE_BY_ID, type Ground } from "@/data/strawberry";
 
 /** How much of the runway one plate takes to hand over to the next. */
-export const DISSOLVE = 0.026;
+export const DISSOLVE = 0.022;
 
 /**
  * The iris gets roughly twice the runway of a dissolve.
@@ -10,14 +10,14 @@ export const DISSOLVE = 0.026;
  * looks the same at every moment. The iris is a movement, and a movement given
  * only 400px of scroll is over before it registers as one.
  */
-export const IRIS = 0.055;
+export const IRIS = 0.045;
 
 /**
  * A bridge is a whole filmed shot, so it needs the most runway of the three -
  * it has a beginning, a middle and an end to get through, where a dissolve only
  * has a strength.
  */
-export const BRIDGE = 0.075;
+export const BRIDGE = 0.058;
 
 const INDEX_OF = new Map(PLATES.map((p, i) => [p.id, i]));
 

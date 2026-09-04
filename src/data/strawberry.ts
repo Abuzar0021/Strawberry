@@ -87,33 +87,35 @@ export type Plate = {
 /**
  * How many frames each sequence has.
  *
- * Allocated by how fast the picture actually moves, not by how much runway the
- * chapter owns. Spacing them evenly in scroll was the obvious thing and the
- * wrong one: the renderer blends between the two frames either side of the
- * playhead, and a crossfade can only ever recover about half of a movement, so
- * what matters is how much changes between one frame and the next. That varied
- * seventeenfold across these clips. The canopy bridge was crossing a gap of
- * 13.6 with 5.4 of it left over as ghost; the orbit plate barely moves and was
- * carrying a hundred and four frames to say so.
+ * Chosen so that consecutive frames differ by the same amount everywhere,
+ * rather than so they are the same distance apart in scroll.
  *
- * Equalising it leaves every clip about 1.8 of blend error instead of a spread
- * from 0.3 to 6.5 - the worst case three and a half times better - for seven
- * megabytes, most of which the over-sampled chapters paid for themselves. The
- * canopy bridge now holds every frame its source has.
+ * Sampling at a constant frame rate maps scroll to the source's timecode, and
+ * these clips do not move at a constant rate: one of the bridges sits nearly
+ * still for a third of its length and then whips, so at an even sample it
+ * showed a run of steps eleven times its own median. That is what reads as a
+ * cut. Frames are picked along each clip's cumulative-change curve instead, so
+ * equal scroll buys equal movement - dead time in the footage is compressed
+ * away and fast passages get the frames they need.
+ *
+ * The counts below follow from one number, a step of 3.6, applied to every
+ * clip. What is left is source-limited: a single frame-to-frame jump larger
+ * than the step cannot be subdivided by any sampling, and the two that remain
+ * sit inside a bridge's crossfade ramp.
  */
 export const FRAMES: Record<string, number> = {
-  "apply-sapling": 28,
-  "bridge-cut-to-work": 114,
-  "bridge-orbit-to-canopy": 192,
-  "bridge-work-to-orbit": 115,
-  "faq-canopy": 93,
-  "footer-grove": 28,
-  "hero-curtain": 192,
-  "model-cut": 29,
-  "model-graft": 89,
-  "model-ladder": 33,
-  "terms-orbit": 28,
-  "work-pear": 28,
+  "apply-sapling": 39,
+  "bridge-cut-to-work": 96,
+  "bridge-orbit-to-canopy": 156,
+  "bridge-work-to-orbit": 110,
+  "faq-canopy": 83,
+  "footer-grove": 60,
+  "hero-curtain": 142,
+  "model-cut": 47,
+  "model-graft": 116,
+  "model-ladder": 55,
+  "terms-orbit": 33,
+  "work-pear": 48,
 };
 
 export const PLATES: Plate[] = [
@@ -205,61 +207,6 @@ export const PLATE_BY_ID: Record<string, Plate> = Object.fromEntries(
 );
 
 /** The four chapters the left-hand rail counts through. */
-export const CHAPTERS = [
-  { n: 1, label: "The Model", at: 0.1 },
-  { n: 2, label: "The Work", at: 0.37 },
-  { n: 3, label: "The Terms", at: 0.55 },
-  { n: 4, label: "Questions", at: 0.73 },
-] as const;
-
-/**
- * Scene windows on the playhead, each `[in, out]`.
- *
- * Copy fades across the first and last tenth of its own window, so the gaps
- * between windows are what stop two scenes reading at once. Keep them.
- */
-export const SCENES = {
-  hero: [0.0, 0.082],
-  beat1: [0.108, 0.19],
-  beat2: [0.204, 0.286],
-  beat3: [0.3, 0.352],
-  work: [0.402, 0.53],
-  terms: [0.552, 0.708],
-  faq: [0.73, 0.852],
-  apply: [0.868, 0.93],
-  footer: [0.944, 1.0],
-} as const;
-
-export type SceneName = keyof typeof SCENES;
-
-/**
- * Scene order, and the plate each one stands on.
- *
- * Only the document fallback needs this - with no shader running, each layer
- * has to paint its own ground so the copy still has something legible behind
- * it. The order must match the order the layers are rendered in.
- */
-export const SCENE_ORDER: { scene: SceneName; plate: string }[] = [
-  { scene: "hero", plate: "curtain" },
-  { scene: "beat1", plate: "graft" },
-  { scene: "beat2", plate: "ladder" },
-  { scene: "beat3", plate: "cut" },
-  { scene: "work", plate: "halftone-pear" },
-  { scene: "terms", plate: "orbit" },
-  { scene: "faq", plate: "canopy" },
-  { scene: "apply", plate: "sapling" },
-  { scene: "footer", plate: "grove" },
-];
-
-/**
- * Which plate is on screen across the runway, and where each hands over.
- *
- * `via` picks how the handover INTO that plate is drawn. The halftone dissolve
- * is the house style and carries most of them; the iris is a bigger gesture -
- * a circle opening from the centre with both plates counter-scaling through it -
- * and is spent only where the site is meant to feel like it is going somewhere.
- * Using it everywhere would cost the dissolve its meaning.
- */
 export type Handover = "dissolve" | "iris" | "bridge";
 
 export const PLATE_CUES: {
@@ -292,6 +239,95 @@ export const PLATE_CUES: {
   { at: 0.862, plate: "sapling", via: "iris" },
   { at: 0.938, plate: "grove" },
 ];
+
+export const CHAPTERS = [
+  { n: 1, label: "The Model", at: 0.1 },
+  { n: 2, label: "The Work", at: 0.37 },
+  { n: 3, label: "The Terms", at: 0.55 },
+  { n: 4, label: "Questions", at: 0.73 },
+] as const;
+
+/**
+ * Scene windows on the playhead, each `[in, out]`.
+ *
+ * Derived from the cue table rather than written out, because they were
+ * written out and they drifted. Each window used to stop short of the next
+ * one, and the gaps added up to eighteen per cent of the runway with no copy
+ * on it at all - nearly six thousand pixels of scrolling past artwork with
+ * nothing to read, on top of the fades at either end of every window. Barely
+ * half the site was ever showing copy at full strength.
+ *
+ * A chapter now owns the runway from its own cue to the next one, so the copy
+ * hands over exactly where the plates do. The fades still cover the handover:
+ * each scene asks for a fade narrow enough that it runs out inside the
+ * transition rather than well before it starts.
+ */
+const SCENE_SEQUENCE = [
+  "hero",
+  "beat1",
+  "beat2",
+  "beat3",
+  "work",
+  "terms",
+  "faq",
+  "apply",
+  "footer",
+] as const;
+
+/**
+ * How far each window reaches past its cue into its neighbours'.
+ *
+ * Without it the windows meet exactly on the cue, where the outgoing scene has
+ * finished fading and the incoming one has not started - both at zero on the
+ * same frame, which reads as a blink rather than a handover.
+ *
+ * It wants to be about half a scene's fade width, so the two ramps cross near
+ * the middle. Twice that and they cross near the top instead: both headlines
+ * legible at once, sitting on top of each other, which is worse than the blink
+ * it was meant to fix.
+ */
+const OVERLAP = 0.006;
+
+export const SCENES = SCENE_SEQUENCE.reduce(
+  (acc, name, i) => {
+    const from = PLATE_CUES[i].at;
+    const to = PLATE_CUES[i + 1]?.at ?? 1;
+    acc[name] = [Math.max(0, from - (i ? OVERLAP : 0)), Math.min(1, to + OVERLAP)];
+    return acc;
+  },
+  {} as Record<(typeof SCENE_SEQUENCE)[number], readonly [number, number]>,
+);
+
+export type SceneName = keyof typeof SCENES;
+
+/**
+ * Scene order, and the plate each one stands on.
+ *
+ * Only the document fallback needs this - with no shader running, each layer
+ * has to paint its own ground so the copy still has something legible behind
+ * it. The order must match the order the layers are rendered in.
+ */
+export const SCENE_ORDER: { scene: SceneName; plate: string }[] = [
+  { scene: "hero", plate: "curtain" },
+  { scene: "beat1", plate: "graft" },
+  { scene: "beat2", plate: "ladder" },
+  { scene: "beat3", plate: "cut" },
+  { scene: "work", plate: "halftone-pear" },
+  { scene: "terms", plate: "orbit" },
+  { scene: "faq", plate: "canopy" },
+  { scene: "apply", plate: "sapling" },
+  { scene: "footer", plate: "grove" },
+];
+
+/**
+ * Which plate is on screen across the runway, and where each hands over.
+ *
+ * `via` picks how the handover INTO that plate is drawn. The halftone dissolve
+ * is the house style and carries most of them; the iris is a bigger gesture -
+ * a circle opening from the centre with both plates counter-scaling through it -
+ * and is spent only where the site is meant to feel like it is going somewhere.
+ * Using it everywhere would cost the dissolve its meaning.
+ */
 
 export const HERO = {
   headline: "Websites you actually own.",

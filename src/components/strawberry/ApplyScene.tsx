@@ -16,9 +16,15 @@ import { APPLY, BRAND, SCENES } from "@/data/strawberry";
 export function ApplyScene() {
   const [sent, setSent] = useState(false);
 
-  const ref = useScene<HTMLDivElement>(SCENES.apply, ({ t, el }) => {
-    revealBlocks(el, t, 0.5);
-  });
+  const ref = useScene<HTMLDivElement>(
+    SCENES.apply,
+    ({ t, el }) => {
+      revealBlocks(el, t, 0.5);
+    },
+    // this is the form: it should be readable and reachable for as much of its
+    // chapter as possible, not easing in and out of it
+    { fade: 0.11 },
+  );
 
   const submit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

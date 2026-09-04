@@ -19,7 +19,7 @@ export function CloseScene() {
       revealBlocks(el, t, 0.5);
       revealLines(el, t - 0.04, 0.44);
     },
-    { drift: 18 }
+    { drift: 18, fade: 0.13 }
   );
 
   return (

@@ -34,7 +34,7 @@ export function HeroScene({ onApply }: { onApply: () => void }) {
       revealChars(el, k, 0.5);
       revealBlocks(el, k - 0.06, 0.5);
     },
-    { drift: 26, fadeIn: 0, fade: 0.22 }
+    { drift: 26, fadeIn: 0, fade: 0.15 }
   );
 
   useEffect(() => {

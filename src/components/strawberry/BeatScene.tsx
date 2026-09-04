@@ -21,10 +21,16 @@ export function BeatScene({
   range: readonly number[];
 }) {
   const beat = BEATS[index];
-  const ref = useScene<HTMLDivElement>(range, ({ t, el }) => {
-    revealLines(el, t, 0.44);
-    revealBlocks(el, t - 0.05, 0.48);
-  });
+  const ref = useScene<HTMLDivElement>(
+    range,
+    ({ t, el }) => {
+      revealLines(el, t, 0.44);
+      revealBlocks(el, t - 0.05, 0.48);
+    },
+    // the window now runs cue to cue, so the fade only has to cover the
+    // handover at either end rather than a gap that was there before it
+    { fade: 0.13 },
+  );
 
   return (
     <div className="layer" ref={ref}>
