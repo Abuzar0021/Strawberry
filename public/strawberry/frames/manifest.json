@@ -1,14 +1,14 @@
 {
- "apply-sapling": 47,
- "bridge-cut-to-work": 56,
- "bridge-orbit-to-canopy": 56,
- "bridge-work-to-orbit": 56,
- "faq-canopy": 84,
- "footer-grove": 46,
- "hero-curtain": 54,
- "model-cut": 47,
- "model-graft": 65,
- "model-ladder": 61,
- "terms-orbit": 104,
- "work-pear": 84
+ "hero-curtain": 192,
+ "model-graft": 89,
+ "model-ladder": 33,
+ "model-cut": 29,
+ "work-pear": 28,
+ "terms-orbit": 28,
+ "faq-canopy": 93,
+ "apply-sapling": 28,
+ "footer-grove": 28,
+ "bridge-cut-to-work": 114,
+ "bridge-work-to-orbit": 115,
+ "bridge-orbit-to-canopy": 192
 }

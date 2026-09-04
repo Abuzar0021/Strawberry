@@ -85,24 +85,35 @@ export type Plate = {
 };
 
 /**
- * How many frames each plate's sequence has.
+ * How many frames each sequence has.
  *
- * Allocated by chapter length rather than evenly: a chapter that owns twice
- * the runway needs twice the frames to feel equally smooth under a scrub.
+ * Allocated by how fast the picture actually moves, not by how much runway the
+ * chapter owns. Spacing them evenly in scroll was the obvious thing and the
+ * wrong one: the renderer blends between the two frames either side of the
+ * playhead, and a crossfade can only ever recover about half of a movement, so
+ * what matters is how much changes between one frame and the next. That varied
+ * seventeenfold across these clips. The canopy bridge was crossing a gap of
+ * 13.6 with 5.4 of it left over as ghost; the orbit plate barely moves and was
+ * carrying a hundred and four frames to say so.
+ *
+ * Equalising it leaves every clip about 1.8 of blend error instead of a spread
+ * from 0.3 to 6.5 - the worst case three and a half times better - for seven
+ * megabytes, most of which the over-sampled chapters paid for themselves. The
+ * canopy bridge now holds every frame its source has.
  */
 export const FRAMES: Record<string, number> = {
-  "apply-sapling": 47,
-  "bridge-cut-to-work": 56,
-  "bridge-orbit-to-canopy": 56,
-  "bridge-work-to-orbit": 56,
-  "faq-canopy": 84,
-  "footer-grove": 46,
-  "hero-curtain": 54,
-  "model-cut": 47,
-  "model-graft": 65,
-  "model-ladder": 61,
-  "terms-orbit": 104,
-  "work-pear": 84,
+  "apply-sapling": 28,
+  "bridge-cut-to-work": 114,
+  "bridge-orbit-to-canopy": 192,
+  "bridge-work-to-orbit": 115,
+  "faq-canopy": 93,
+  "footer-grove": 28,
+  "hero-curtain": 192,
+  "model-cut": 29,
+  "model-graft": 89,
+  "model-ladder": 33,
+  "terms-orbit": 28,
+  "work-pear": 28,
 };
 
 export const PLATES: Plate[] = [
