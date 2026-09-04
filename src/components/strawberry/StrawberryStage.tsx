@@ -137,6 +137,7 @@ export function StrawberryStage() {
         <section className="stage" ref={stage} style={{ height: `${RUNWAY_VH}vh` }}>
           <div className="pin" ref={pin} data-ink="cream">
             {!still && <PlateCanvas onUnavailable={noGl} />}
+            {!still && <span className="scrim" aria-hidden="true" />}
 
             {/* The frame: one rule across the top, one down the margin. It is
                 the whole of the site's chrome, and it never moves. */}

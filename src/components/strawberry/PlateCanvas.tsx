@@ -128,8 +128,31 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
       dirty = true;
     };
 
+    /* Read-only probes. The frames are not in the DOM, so without these there
+       is no way to tell a stuck sequence from a moving one - the camera keeps
+       drifting either way, which is how a freeze went unnoticed before.
+       `shown` is where on the GPU each sequence is sitting - its leading frame
+       plus how far past it - and `loaded` is what has arrived; a slot can
+       legitimately have many frames and none of them shown, because a chapter
+       nobody is looking at is not worth uploading. */
+    const probe = window as unknown as {
+      playhead?: number;
+      stageClipTimes?: () => (number | null)[];
+      stageFilm?: () => { shown: number; loaded: number; n: number; live: boolean }[];
+    };
+    const positionOf = (s: Sequence | null) =>
+      !s || s.ia < 0 ? null : s.ia + (s.ib > s.ia ? (s.ib - s.ia) * s.frac : 0);
+    probe.stageClipTimes = () => seqs.map((s) => positionOf(s ?? null));
+    probe.stageFilm = () =>
+      seqs.map((s, i) => ({
+        shown: positionOf(s ?? null) ?? -1,
+        loaded: s?.loaded ?? 0,
+        n: s?.n ?? 0,
+        live: live.has(i),
+      }));
+
     const unsub = subscribeStage((p) => {
-      (window as unknown as { __p?: number }).__p = p;
+      probe.playhead = p;
       const c = cueAt(p);
 
       /* Parallax is blended between the outgoing segment and the incoming one
@@ -194,28 +217,6 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
         }
       }
     });
-
-    /* Read-only probes. The frames are not in the DOM, so without these there
-       is no way to tell a stuck sequence from a moving one - the camera keeps
-       drifting either way, which is how a freeze went unnoticed before.
-       `shown` is where on the GPU each sequence is sitting - its leading frame
-       plus how far past it - and `loaded` is what has arrived; a slot can
-       legitimately have many frames and none of them shown, because a chapter
-       nobody is looking at is not worth uploading. */
-    const probe = window as unknown as {
-      stageClipTimes?: () => (number | null)[];
-      stageFilm?: () => { shown: number; loaded: number; n: number; live: boolean }[];
-    };
-    const positionOf = (s: Sequence | null) =>
-      !s || s.ia < 0 ? null : s.ia + (s.ib > s.ia ? (s.ib - s.ia) * s.frac : 0);
-    probe.stageClipTimes = () => seqs.map((s) => positionOf(s ?? null));
-    probe.stageFilm = () =>
-      seqs.map((s, i) => ({
-        shown: positionOf(s ?? null) ?? -1,
-        loaded: s?.loaded ?? 0,
-        n: s?.n ?? 0,
-        live: live.has(i),
-      }));
 
     const tick = () => {
       if (!alive || !stage) return;

@@ -275,7 +275,9 @@ export const PLATE_CUES: {
 
 export const HERO = {
   headline: "Websites you actually own.",
-  subhead: ["Solo-built · Self-hosted", "· Yours."],
+  // the separator hangs at the end of the first line; leading a line with it
+  // reads as a bullet point rather than as a continuation
+  subhead: ["Solo-built · Self-hosted ·", "Yours."],
   cta: "Start a build",
   badge: "Dublin · Jakarta",
   stand:

@@ -50,7 +50,13 @@ export function CloseScene() {
         data-rise
       >
         <span>{BRAND.org}</span>
-        <a href={`mailto:${BRAND.email}`} className="underline-offset-4 hover:underline">
+        {/* `mailto` is the only outbound link on the site, and on a phone it is
+            an eleven-pixel strip of text. `inline-flex` plus the coarse-pointer
+            floor gives the finger something to land on without moving it. */}
+        <a
+          href={`mailto:${BRAND.email}`}
+          className="mail-link inline-flex items-center underline-offset-4 hover:underline"
+        >
           {BRAND.email.toUpperCase()}
         </a>
       </div>
