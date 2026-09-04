@@ -1,0 +1,770 @@
+@import "tailwindcss";
+
+/* ============================================================
+   PEAR — design tokens
+
+   Two grounds and one ink. Every surface on this site is either a
+   painted plate or a flat colour sampled out of one, so the palette
+   below is not a set of UI colours — it is the set of colours the
+   artwork already resolves to at its edges. Copy chooses cream or
+   ink depending on which ground it happens to be standing on, and
+   nothing else in the system carries a hue.
+   ============================================================ */
+
+@theme {
+  --font-display: var(--font-newsreader), "Iowan Old Style", Georgia, serif;
+  --font-text: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-code: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+:root {
+  /* ink */
+  --press: #0b0a09;
+  --ink: #1d1c19;
+  --ink-soft: #2e2109;
+  --paper: #f2f1ed;
+  --cream: #fffaea;
+
+  /* grounds — these match the plate edges in src/lib/pearPlates.ts */
+  --cobalt: #0a5f9e;
+  --azure: #0b7baa;
+  --bone: #dcdcd2;
+  --night: #073568;
+
+  --gold: #c2a365;
+
+  /* The reference build lays everything against a margin at 5.3% and a
+     hairline rule a fixed distance below the top. Both are used by the
+     chapter rail, the header and every copy block, so they are tokens. */
+  --v1: 5.3%;
+  --h1: 5.3vw;
+  --rule: 76px;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Set per scene from JS. Copy reads these rather than knowing which
+     chapter it is in. */
+  --fg: var(--cream);
+  --fg-dim: rgb(255 250 234 / 0.72);
+  --hair: rgb(255 255 255 / 0.22);
+}
+
+* {
+  min-width: 0;
+}
+
+html {
+  background-color: var(--cobalt);
+  color-scheme: light only;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  background-color: var(--cobalt);
+  color: var(--fg);
+  font-family: var(--font-text);
+  font-synthesis-weight: none;
+  overflow-x: clip;
+}
+
+::selection {
+  background: var(--press);
+  color: var(--cream);
+}
+
+/* ============================================================
+   The stage
+
+   One sticky pin holds the WebGL plates and every copy layer. The
+   document is nothing but a tall runway whose only job is to give
+   the playhead somewhere to travel.
+   ============================================================ */
+
+.stage {
+  position: relative;
+}
+
+.pin {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  overflow: clip;
+  background: var(--cobalt);
+  /* `color` has to be declared here, not only on body: body resolved var(--fg)
+     against :root once, and inheritance carries the computed colour down. Only
+     a fresh declaration inside the pin picks up the per-chapter override. */
+  color: var(--fg);
+}
+
+.plate-gl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Every scene is a layer over the plates. Opacity and transform are driven
+   from the playhead, so nothing here animates in CSS. */
+.layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+/* Only the controls inside a layer take the pointer. This has to sit on the
+   layer itself, not on its children: a layer is a full-viewport absolute box
+   stacked over the chapter rail, so leaving it hit-testable makes the rail
+   unclickable everywhere the two overlap — which is everywhere. */
+.layer {
+  pointer-events: none;
+}
+.layer a,
+.layer button,
+.layer input,
+.layer textarea,
+.layer label {
+  pointer-events: auto;
+}
+
+/* The copy column, shared by every scene so headlines never disagree
+   about where the left margin is. */
+.col {
+  position: absolute;
+  left: var(--v1);
+  max-width: min(46rem, 62vw);
+}
+
+.col-wide {
+  max-width: min(62rem, 86vw);
+}
+
+/* ============================================================
+   Type
+   ============================================================ */
+
+@layer components {
+  .t-display {
+    font-family: var(--font-display);
+    font-weight: 300;
+    /* tracking tightens as the type grows — the one rule the reference
+       applies consistently across its whole display range */
+    letter-spacing: -0.026em;
+    line-height: 1.04;
+    /* Sized so the opening statement holds one line on a laptop. Newsreader
+       sets wider than the Flecha it stands in for, so matching the reference's
+       ~96px would wrap it, and a two-line "Pear makes you appear." loses the
+       whole gesture. */
+    font-size: clamp(2rem, 5.7vw, 5.9rem);
+    margin: 0;
+  }
+
+  .t-beat {
+    font-family: var(--font-display);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 0.977;
+    font-size: clamp(1.75rem, 3.32vw, 3.75rem);
+    margin: 0;
+  }
+
+  .t-subhead {
+    font-family: var(--font-display);
+    font-weight: 300;
+    letter-spacing: -0.012em;
+    line-height: 1.14;
+    font-size: clamp(0.95rem, 1.68vw, 1.85rem);
+    margin: 0;
+  }
+
+  .t-title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    font-size: clamp(1.15rem, 1.62vw, 1.6rem);
+    margin: 0;
+  }
+
+  .t-fin {
+    font-family: var(--font-display);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 0.88;
+    font-size: clamp(1.9rem, 4.05vw, 4.35rem);
+    margin: 0;
+  }
+
+  /* Running copy. Short measure, tight leading — it is a caption to the
+     painting, not an essay. */
+  .t-stand {
+    font-family: var(--font-text);
+    font-weight: 400;
+    letter-spacing: -0.005em;
+    line-height: 1.3;
+    font-size: clamp(0.8125rem, 1.068vw, 1.1875rem);
+    max-width: 27.4em;
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  .t-small {
+    font-family: var(--font-text);
+    font-weight: 400;
+    line-height: 1.42;
+    font-size: clamp(0.75rem, 0.83vw, 0.875rem);
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  /* Mono is for labels only, never for reading. */
+  .t-mono {
+    font-family: var(--font-code);
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: clamp(0.5625rem, 0.66vw, 0.75rem);
+    line-height: 1;
+  }
+}
+
+/* Split text. A word travels out from behind its own baseline, so the mask
+   is a wrapper rather than overflow on the word itself. */
+.ln {
+  display: block;
+  overflow: hidden;
+}
+.ln > i {
+  display: block;
+  font-style: inherit;
+  will-change: transform;
+}
+.ch {
+  display: inline-block;
+  will-change: transform, opacity;
+}
+
+/* ============================================================
+   Chrome — header, chapter rail, hairline grid
+   ============================================================ */
+
+.hair {
+  position: absolute;
+  background: var(--hair);
+  pointer-events: none;
+}
+.hair-h {
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+.hair-v {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.mark {
+  position: absolute;
+  left: var(--v1);
+  top: calc(var(--rule) / 2);
+  transform: translateY(-50%);
+  width: clamp(22px, 1.9vw, 30px);
+  color: var(--fg);
+}
+
+.apply {
+  position: absolute;
+  right: 2%;
+  top: calc(var(--rule) / 2);
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 1.1em;
+  padding: 0.5em 0.5em 0.5em 1.15em;
+  border-radius: 4px;
+  background: var(--press);
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+}
+
+.arw {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  width: 2.1em;
+  font-size: 0.92em;
+  border: 1px solid rgb(255 255 255 / 0.3);
+  border-radius: 3px;
+  background: rgb(255 255 255 / 0.14);
+  transition: background-color 0.26s var(--ease), transform 0.26s var(--ease);
+}
+.apply:hover .arw,
+.cta:hover .arw {
+  background: rgb(255 255 255 / 0.28);
+  transform: translateX(2px);
+}
+.cta .arw {
+  border-color: rgb(29 28 25 / 0.3);
+  background: rgb(29 28 25 / 0.08);
+}
+.cta:hover .arw {
+  background: rgb(29 28 25 / 0.16);
+}
+
+/* The rail counts chapters down the left edge and is the only persistent
+   navigation. Ticks are drawn, not listed, so it reads as an instrument. */
+.rail {
+  transition: opacity 0.5s var(--ease);
+  position: absolute;
+  left: var(--v1);
+  top: 26%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.rail button {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 35px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: var(--fg);
+  opacity: 0.45;
+  transition: opacity 0.4s var(--ease);
+}
+.rail button[data-on="1"],
+.rail button:hover {
+  opacity: 1;
+}
+.rail .tick {
+  display: block;
+  width: 12px;
+  height: 1px;
+  background: currentColor;
+  transition: width 0.45s var(--ease);
+}
+.rail button[data-on="1"] .tick {
+  width: 30px;
+}
+.rail .label {
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.45s var(--ease), transform 0.45s var(--ease);
+}
+.rail button[data-on="1"] .label,
+.rail button:hover .label {
+  opacity: 1;
+  transform: none;
+}
+
+/* ============================================================
+   Controls
+   ============================================================ */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 19px;
+  padding: 4px 10px 3px 8px;
+  border-radius: 5.25px;
+  background: rgb(255 255 255 / 0.16);
+  color: var(--fg);
+  white-space: nowrap;
+}
+[data-ink="ink"] .chip {
+  background: rgb(29 28 25 / 0.09);
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(10px, 1.1vw, 20px);
+  padding: clamp(4px, 0.28vw, 5px) clamp(4px, 0.28vw, 5px) clamp(4px, 0.28vw, 5px)
+    clamp(10px, 0.9vw, 17px);
+  border: 0;
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+}
+/* A wash crosses the face on hover instead of the button changing colour —
+   nothing on this site has a hover state that swaps a fill. */
+.cta::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.75) 50%, transparent 80%);
+  transform: translateX(-110%);
+  transition: transform 0.7s var(--ease);
+}
+.cta:hover::after {
+  transform: translateX(110%);
+}
+
+:focus-visible {
+  outline: 2px solid var(--cream);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+[data-ink="ink"] :focus-visible {
+  outline-color: var(--press);
+}
+
+/* ============================================================
+   Scene: the questions carousel
+
+   Five cards on a cylinder. Depth is real — the cards are placed with
+   translateZ and the ones at the back are blurred, so turning the ring
+   reads as rotation rather than as a fade between five positions.
+   ============================================================ */
+
+.ring {
+  position: absolute;
+  inset: 0;
+  perspective: 1400px;
+  perspective-origin: 50% 46%;
+}
+.ring-in {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+.fq {
+  /* Card geometry taken from the reference build: 259.756 x 330, with the
+     question and answer absolutely placed inside it rather than flowing. */
+  position: absolute;
+  left: 50%;
+  top: 60.2%;
+  width: 259.756px;
+  height: 330px;
+  margin-left: -129.878px;
+  box-sizing: border-box;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  will-change: transform;
+  color: #fff;
+  text-shadow: 0 1px 12px rgb(10 16 4 / 0.7), 0 0 3px rgb(10 16 4 / 0.55);
+  border-radius: 5.25px;
+  background: rgb(6 30 58 / 0.62);
+  border: 1px solid rgb(255 255 255 / 0.18);
+}
+
+.fq .num {
+  position: absolute;
+  top: 18px;
+  left: 30px;
+  opacity: 0.55;
+}
+
+.fq h3 {
+  position: absolute;
+  top: 40px;
+  left: 30px;
+  width: 194px;
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 26.222px;
+  line-height: 24.453px;
+  letter-spacing: -0.5244px;
+}
+
+/* The answer is only legible on the card that is actually facing you. On the
+   reference build every other card carries its question alone, which is what
+   keeps a ring of five from reading as a wall of text. */
+.fq p {
+  position: absolute;
+  top: 182px;
+  left: 30px;
+  width: 207px;
+  margin: 0;
+  font-family: var(--font-text);
+  font-weight: 400;
+  font-size: 12.8px;
+  line-height: 16.853px;
+  opacity: 0;
+  transition: opacity 0.45s var(--ease);
+}
+
+.fq.on p {
+  opacity: 0.88;
+}
+
+
+/* The handwritten lead-in draws itself as the ring arrives. */
+.sig path {
+  fill: none;
+  stroke: var(--cream);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ============================================================
+   Scene: the application
+   ============================================================ */
+
+.field {
+  position: relative;
+  display: block;
+  border-radius: 22px;
+  background: linear-gradient(
+    157deg,
+    rgb(255 255 255 / 0.2) 0%,
+    rgb(255 255 255 / 0.06) 38%,
+    rgb(190 220 255 / 0.14) 100%
+  );
+  box-shadow: inset 0 1px 6px rgb(6 20 46 / 0.18);
+  transition: box-shadow 0.35s var(--ease), background 0.35s var(--ease);
+}
+.field:focus-within {
+  background: linear-gradient(
+    157deg,
+    rgb(255 255 255 / 0.3) 0%,
+    rgb(255 255 255 / 0.12) 38%,
+    rgb(190 220 255 / 0.22) 100%
+  );
+  box-shadow: inset 0 1px 6px rgb(6 20 46 / 0.24), 0 0 0 1px rgb(255 255 255 / 0.35);
+}
+.field input,
+.field textarea {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: var(--cream);
+  font-family: var(--font-text);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  padding: 13px 18px;
+  resize: none;
+}
+.field input:focus,
+.field textarea:focus {
+  outline: none;
+}
+.field input::placeholder,
+.field textarea::placeholder {
+  color: rgb(255 250 234 / 0.5);
+}
+.field textarea {
+  border-radius: 14px;
+  min-height: 96px;
+}
+
+/* ============================================================
+   Scene: the close
+   ============================================================ */
+
+.wordmark {
+  font-family: var(--font-text);
+  font-weight: 500;
+  /* "strawberry." is eleven characters where "pear." was five, so it needs a
+     smaller step or it runs past the margins on a laptop. */
+  font-size: clamp(1.75rem, 5.6vw, 5rem);
+  letter-spacing: -0.045em;
+  line-height: 0.85;
+  color: #fff;
+  margin: 0;
+}
+/* The reference sets the "a" as a lambda. Kept, because it is the one
+   piece of wit in an otherwise entirely straight wordmark. */
+.wordmark .lam {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-style: normal;
+}
+
+/* ============================================================
+   Reduced motion, and anything without WebGL
+
+   The stage collapses into an ordinary document: the runway loses its
+   height, the pin stops sticking, and every layer becomes a section in
+   flow with its plate behind it. Nothing is hidden, and nothing moves.
+   ============================================================ */
+
+[data-still="1"] .stage {
+  height: auto !important;
+}
+[data-still="1"] .pin {
+  position: static;
+  height: auto;
+  overflow: visible;
+}
+[data-still="1"] .plate-gl {
+  display: none;
+}
+[data-still="1"] .layer {
+  position: relative;
+  inset: auto;
+  opacity: 1 !important;
+  transform: none !important;
+  min-height: 60vh;
+  padding: clamp(4rem, 9vh, 8rem) var(--v1);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--scene-ground, var(--cobalt));
+}
+/* `.mark` is an anchor. Taken out of absolute positioning it becomes inline,
+   width stops applying, and its 100%-wide child SVG fills the page. */
+[data-still="1"] .mark {
+  display: block;
+  width: 30px;
+  margin: clamp(1.5rem, 4vh, 3rem) var(--v1) 0;
+}
+
+[data-still="1"] .col,
+[data-still="1"] .rail,
+[data-still="1"] .ring,
+[data-still="1"] .mark {
+  position: static;
+  transform: none;
+  max-width: 46rem;
+  left: auto;
+  top: auto;
+}
+[data-still="1"] .ring-in {
+  position: static;
+  display: grid;
+  gap: 1rem;
+}
+[data-still="1"] .fq {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  /* The ring writes transform, filter, opacity and z-index inline before the
+     fallback is decided, so all four have to be taken back here. */
+  transform: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+  z-index: auto !important;
+}
+/* The rail counts positions on a playhead. In document mode there is no
+   playhead, so it has nothing to say. */
+[data-still="1"] .rail {
+  display: none;
+}
+
+/* Two copy blocks that were separated by 40% of a viewport need a gap of
+   their own once they are simply stacked. */
+[data-still="1"] .col + .col {
+  margin-top: clamp(1.75rem, 4vh, 3rem);
+}
+[data-still="1"] .ch,
+[data-still="1"] .ln > i {
+  transform: none !important;
+  opacity: 1 !important;
+}
+[data-still="1"] .hair {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* On a handheld the copy column takes the full width — there is no room
+   beside the artwork for it to sit in. */
+@media (max-width: 767px) {
+  :root {
+    --v1: 6.5%;
+    --rule: 60px;
+  }
+  .col {
+    max-width: none;
+    right: var(--v1);
+  }
+  .rail .label {
+    display: none;
+  }
+}
+
+.mark svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ============================================================
+   Scene: the work
+
+   Three things share this frame — a figure, a measure and a copy
+   group — and they must never touch. Positioning them from classes
+   rather than inline styles is what lets the breakpoint move them;
+   an inline `left` would win over any media query.
+   ============================================================ */
+
+.work-copy {
+  position: absolute;
+  left: var(--v1);
+  right: var(--v1);
+  top: 34%;
+  opacity: 0;
+}
+
+.work-figure {
+  display: none;
+}
+
+.work-measure {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .work-copy {
+    left: 64%;
+    right: 6%;
+    top: 30%;
+  }
+  .work-figure {
+    display: block;
+    position: absolute;
+    left: var(--v1);
+    top: 56%;
+    max-width: 34%;
+  }
+  /* The measure stops short of both edges so its readout never collides
+     with the top rule or runs off the bottom of the frame. */
+  .work-measure {
+    display: block;
+    position: absolute;
+    left: 57%;
+    top: 22%;
+    bottom: 16%;
+    width: 1px;
+    background: var(--hair);
+  }
+}
+
+[data-still="1"] .work-copy,
+[data-still="1"] .work-figure {
+  position: static;
+  opacity: 1;
+  max-width: none;
+  margin-bottom: 2rem;
+}
+[data-still="1"] .work-measure {
+  display: none;
+}
