@@ -93,20 +93,38 @@ export type Plate = {
  * the pace it was generated at rather than being retimed to move a constant
  * amount per pixel.
  */
-export const FRAMES: Record<string, number> = {
-  "apply-sapling": 45,
-  "bridge-cut-to-work": 141,
-  "bridge-terms-to-faq": 141,
-  "bridge-work-to-terms": 94,
-  "faq-canopy": 113,
-  "footer-plinth": 50,
-  "hero-curtain": 162,
-  "model-cut": 81,
-  "model-graft": 81,
-  "model-ladder": 62,
-  "terms-gild": 65,
-  "work-halftone": 75,
+/**
+ * The films, in the order the scroll moves through them.
+ *
+ * Each plays at its own rate; scroll only decides which two are bound and how
+ * far through the handover between them it has got. Nothing is seeked, and the
+ * scroll height is shared equally between them.
+ */
+export const SCENES_FILM = [
+  "/strawberry/scenes/scene-1.mp4",
+  "/strawberry/scenes/scene-2.mp4",
+  "/strawberry/scenes/scene-3.mp4",
+  "/strawberry/scenes/scene-4.mp4",
+  "/strawberry/scenes/scene-5.mp4",
+  "/strawberry/scenes/scene-6.mp4",
+  "/strawberry/scenes/scene-7.mp4",
+  "/strawberry/scenes/scene-8.mp4",
+  "/strawberry/scenes/scene-9.mp4",
+];
+
+/**
+ * The one film that layers rather than follows.
+ *
+ * Screened over the film at `at` for the length of its slice, instead of
+ * taking a slice of its own.
+ */
+export const SCENE_OVERLAY = {
+  at: 3,
+  src: "/strawberry/scenes/scene-4b.mp4",
 };
+
+/** Which film the FAQ cards float over, so the pin and the sky agree. */
+export const CARDS_OVER = 7;
 
 export const PLATES: Plate[] = [
   {

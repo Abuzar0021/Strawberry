@@ -18,10 +18,13 @@
 }
 
 :root {
-  /* ink */
+  /* Ink. Interactive accents are Ink Black; anything you actually read is
+     Espresso Brown, which is warmer and sits better on parchment. */
   --press: #0b0a09;
-  --ink: #1d1c19;
+  --ink: #2e2109;
   --ink-soft: #2e2109;
+  /* Depth is a surface swap, never a shadow: cream is the ground, paper is the
+     one step down from it, and that is the whole elevation scale. */
   --paper: #f2f1ed;
   --cream: #fffaea;
 
@@ -119,33 +122,25 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  /* Light. The plates are cover-fitted and no longer zoomed into, so each one
-     shows the flat field it was composed with and the copy has somewhere to sit
-     without being helped. A heavier wash here reads as a vignette down the edge
-     of every chapter and takes the flatness out of the ground colour, which is
-     the thing holding the chapters together. */
-  background:
-    linear-gradient(96deg, rgb(4 10 20 / 0.26) 0%, rgb(4 10 20 / 0.12) 34%, rgb(4 10 20 / 0) 58%),
-    linear-gradient(rgb(4 10 20 / 0.18) 0%, rgb(4 10 20 / 0) 20%);
+  /* Flat. A graded wash is the obvious way to protect copy over film and it is
+     ruled out here, which turns out to be the better constraint: an even
+     darkening leaves the picture's own contrast intact and reads as a printed
+     ink layer rather than as a vignette someone added to fix legibility. */
+  background: rgb(4 10 20 / 0.3);
 }
 
-/* A chapter that sets its type in ink needs the opposite wash. */
 [data-ink="ink"] .scrim {
-  background:
-    linear-gradient(96deg, rgb(244 242 233 / 0.3) 0%, rgb(244 242 233 / 0.14) 34%, rgb(244 242 233 / 0) 58%),
-    linear-gradient(rgb(244 242 233 / 0.2) 0%, rgb(244 242 233 / 0) 20%);
+  background: rgb(246 244 236 / 0.34);
 }
 
 @media (max-width: 767px) {
+  /* A portrait viewport crops a 16:9 film to whatever slice lands in the
+     middle, so the copy has no reserved field and needs more help. */
   .scrim {
-    background: linear-gradient(
-      rgb(4 10 20 / 0.56) 0%, rgb(4 10 20 / 0.4) 30%,
-      rgb(4 10 20 / 0.36) 62%, rgb(4 10 20 / 0.62) 100%);
+    background: rgb(4 10 20 / 0.44);
   }
   [data-ink="ink"] .scrim {
-    background: linear-gradient(
-      rgb(244 242 233 / 0.62) 0%, rgb(244 242 233 / 0.46) 30%,
-      rgb(244 242 233 / 0.42) 62%, rgb(244 242 233 / 0.66) 100%);
+    background: rgb(246 244 236 / 0.48);
   }
 }
 
@@ -195,13 +190,13 @@ body {
     font-weight: 300;
     /* tracking tightens as the type grows - the one rule the reference
        applies consistently across its whole display range */
-    letter-spacing: -0.026em;
+    letter-spacing: -0.045em;
     line-height: 1.04;
     /* Sized so the opening statement holds one line on a laptop. Newsreader
        sets wider than the Flecha it stands in for, so matching the reference's
        ~96px would wrap it, and a two-line "Pear makes you appear." loses the
        whole gesture. */
-    font-size: clamp(2rem, 5.7vw, 5.9rem);
+    font-size: clamp(2.6rem, 7.4vw, 9.5rem);
     margin: 0;
   }
 
@@ -328,7 +323,7 @@ body {
   align-items: center;
   gap: 1.1em;
   padding: 0.5em 0.5em 0.5em 1.15em;
-  border-radius: 4px;
+  border-radius: 999px;
   background: var(--press);
   color: #fff;
   border: 0;
@@ -342,7 +337,7 @@ body {
   width: 2.1em;
   font-size: 0.92em;
   border: 1px solid rgb(255 255 255 / 0.3);
-  border-radius: 3px;
+  border-radius: 999px;
   background: rgb(255 255 255 / 0.14);
   transition: background-color 0.26s var(--ease), transform 0.26s var(--ease);
 }
@@ -366,7 +361,6 @@ body {
      than in the copy column, and over the canopy it was tracked 11px type on
      bright foliage. A shadow in the ground colour is enough - a scrim here
      would put a rectangle down the edge of every chapter. */
-  text-shadow: 0 1px 9px rgb(4 12 20 / 0.75), 0 0 3px rgb(4 12 20 / 0.6);
   transition: opacity 0.5s var(--ease);
   position: absolute;
   left: var(--v1);
@@ -394,18 +388,15 @@ body {
   opacity: 1;
 }
 [data-ink="ink"] .rail {
-  text-shadow: 0 1px 9px rgb(246 244 236 / 0.8), 0 0 3px rgb(246 244 236 / 0.65);
 }
 .rail .tick {
   display: block;
   width: 12px;
   height: 1px;
   background: currentColor;
-  box-shadow: 0 0 6px rgb(4 12 20 / 0.6);
   transition: width 0.45s var(--ease);
 }
 [data-ink="ink"] .rail .tick {
-  box-shadow: 0 0 6px rgb(246 244 236 / 0.7);
 }
 .rail button[data-on="1"] .tick {
   width: 30px;
@@ -431,7 +422,7 @@ body {
   align-items: center;
   height: 19px;
   padding: 4px 10px 3px 8px;
-  border-radius: 5.25px;
+  border-radius: 999px;
   background: rgb(255 255 255 / 0.16);
   color: var(--fg);
   white-space: nowrap;
@@ -450,7 +441,7 @@ body {
   padding: clamp(4px, 0.28vw, 5px) clamp(4px, 0.28vw, 5px) clamp(4px, 0.28vw, 5px)
     clamp(10px, 0.9vw, 17px);
   border: 0;
-  border-radius: 4px;
+  border-radius: 999px;
   background: var(--paper);
   color: var(--ink);
   cursor: pointer;
@@ -464,7 +455,7 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.75) 50%, transparent 80%);
+  background: var(--cream);
   transform: translateX(-110%);
   transition: transform 0.7s var(--ease);
 }
@@ -517,8 +508,7 @@ body {
   backface-visibility: hidden;
   will-change: transform;
   color: #fff;
-  text-shadow: 0 1px 12px rgb(10 16 4 / 0.7), 0 0 3px rgb(10 16 4 / 0.55);
-  border-radius: 5.25px;
+  border-radius: 4px;
   background: rgb(6 30 58 / 0.74);
   border: 1px solid rgb(255 255 255 / 0.22);
 }
@@ -585,29 +575,13 @@ body {
 .field {
   position: relative;
   display: block;
-  border-radius: 22px;
-  background:
-    linear-gradient(
-      157deg,
-      rgb(255 255 255 / 0.16) 0%,
-      rgb(255 255 255 / 0.05) 38%,
-      rgb(190 220 255 / 0.12) 100%
-    ),
-    rgb(7 24 52 / 0.78);
+  border-radius: 4px;
+  background: rgb(7 24 52 / 0.78);
   border: 1px solid rgb(255 255 255 / 0.2);
-  box-shadow: inset 0 1px 6px rgb(6 20 46 / 0.18);
-  transition: box-shadow 0.35s var(--ease), background 0.35s var(--ease);
+  transition: background 0.35s var(--ease), border-color 0.35s var(--ease);
 }
 .field:focus-within {
-  background:
-    linear-gradient(
-      157deg,
-      rgb(255 255 255 / 0.26) 0%,
-      rgb(255 255 255 / 0.1) 38%,
-      rgb(190 220 255 / 0.2) 100%
-    ),
-    rgb(7 24 52 / 0.84);
-  box-shadow: inset 0 1px 6px rgb(6 20 46 / 0.24), 0 0 0 1px rgb(255 255 255 / 0.35);
+  background: rgb(7 24 52 / 0.84);
 }
 .field input,
 .field textarea {
@@ -630,7 +604,7 @@ body {
   color: rgb(255 250 234 / 0.72);
 }
 .field textarea {
-  border-radius: 14px;
+  border-radius: 4px;
   min-height: 96px;
 }
 
@@ -935,4 +909,131 @@ body {
 /* Reduced motion never loads a clip, so it never waits for one. */
 @media (prefers-reduced-motion: reduce) {
   .loader { display: none; }
+}
+
+/* ============================================================
+   The cards over the void, and the floating pill
+
+   Both belong to the same rule: depth is a flat surface against another flat
+   surface. No shadow, no blur, no gradient anywhere in this block - a card is
+   in front because it is a different colour, not because it is lit.
+   ============================================================ */
+
+.cards {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: clamp(24px, 4vh, 54px);
+  padding: 0 var(--v1);
+  pointer-events: none;
+}
+
+.cards-lead {
+  font-size: clamp(1.9rem, 5.4vw, 4.4rem);
+  color: var(--cream);
+  margin: 0;
+  text-align: center;
+}
+
+.cards-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(14px, 1.6vw, 26px);
+  width: min(1080px, 100%);
+}
+
+.card {
+  background: var(--paper);
+  border: 1px solid rgb(11 10 9 / 0.14);
+  border-radius: 4px;
+  padding: 31px;
+  color: var(--ink);
+  will-change: transform, opacity;
+  pointer-events: auto;
+}
+
+.card-num {
+  display: block;
+  color: var(--press);
+  opacity: 0.55;
+  margin-bottom: 18px;
+}
+
+.card-q {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.1rem, 1.5vw, 1.45rem);
+  line-height: 1.16;
+  letter-spacing: -0.01em;
+  color: var(--press);
+  margin: 0 0 14px;
+}
+
+.card-a {
+  font-family: var(--font-text);
+  font-weight: 400;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--ink);
+  margin: 0;
+  text-wrap: pretty;
+}
+
+@media (max-width: 900px) {
+  .cards-row {
+    grid-template-columns: 1fr;
+    width: min(520px, 100%);
+  }
+  /* three cards will not fit a phone, and shrinking them to fit is how the
+     type ends up at ten pixels. The first one carries the section. */
+  .card:nth-child(n + 2) {
+    display: none;
+  }
+}
+
+/* The dock owns the position and never changes; the pill owns the paint.
+   Splitting them is what stops the button twitching on a browser that
+   collapses its URL bar mid-scroll - the fixed box is never re-laid-out. */
+.pill-dock {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  will-change: transform;
+  z-index: 120;
+  pointer-events: none;
+}
+
+.pill {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 31px;
+  border: 1px solid var(--press);
+  border-radius: 999px;
+  background: var(--press);
+  color: #ffffff;
+  cursor: pointer;
+  will-change: transform;
+  transition: background-color 0.3s var(--ease), color 0.3s var(--ease);
+}
+
+.pill:hover {
+  background: var(--cream);
+  color: var(--press);
+}
+
+/* The source elements for the WebGL textures. Rendered, so the browser keeps
+   decoding them, but a single transparent pixel so nothing is ever seen. */
+.scene-src {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  top: 0;
+  left: 0;
 }

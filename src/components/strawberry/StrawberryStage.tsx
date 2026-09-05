@@ -6,14 +6,15 @@ import { GROUNDS } from "@/lib/strawberryPlates";
 import { groundAt } from "@/lib/strawberryCues";
 import { subscribeStage, useStageScrub, setStill } from "@/hooks/strawberry/useStrawberryScrub";
 import { BRAND, PLATE_BY_ID, RUNWAY_VH, SCENES, SCENE_ORDER } from "@/data/strawberry";
-import { PlateCanvas } from "./PlateCanvas";
+import { SceneStage } from "./SceneStage";
+import { Cards } from "./Cards";
+import { ApplyPill } from "./ApplyPill";
 import { Loader } from "./Loader";
 import { Rail } from "./Rail";
 import { HeroScene } from "./HeroScene";
 import { BeatScene } from "./BeatScene";
 import { WorkScene } from "./WorkScene";
 import { TermsScene } from "./TermsScene";
-import { FaqScene } from "./FaqScene";
 import { ApplyScene } from "./ApplyScene";
 import { CloseScene } from "./CloseScene";
 
@@ -136,7 +137,8 @@ export function StrawberryStage() {
       <main>
         <section className="stage" ref={stage} style={{ height: `${RUNWAY_VH}vh` }}>
           <div className="pin" ref={pin} data-ink="cream">
-            {!still && <PlateCanvas onUnavailable={noGl} />}
+            {!still && <SceneStage onUnavailable={noGl} />}
+            {!still && <Cards />}
             {!still && <span className="scrim" aria-hidden="true" />}
 
             {/* The frame: one rule across the top, one down the margin. It is
@@ -181,11 +183,11 @@ export function StrawberryStage() {
             <BeatScene index={2} range={SCENES.beat3} />
             <WorkScene />
             <TermsScene />
-            <FaqScene />
             <ApplyScene />
             <CloseScene />
           </div>
         </section>
+        {!still && <ApplyPill onOpen={toApply} />}
       </main>
     </div>
   );
