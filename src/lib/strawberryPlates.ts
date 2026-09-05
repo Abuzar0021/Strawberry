@@ -454,36 +454,89 @@ function stars(ctx: Ctx) {
 }
 
 /** Paints one stand-in plate. */
-export function paintPlate(plate: Plate): HTMLCanvasElement {
-  const c = document.createElement("canvas");
-  c.width = PLATE_W;
-  c.height = PLATE_H;
-  const ctx = c.getContext("2d");
-  if (!ctx) return c;
+/** Where this plate's still belongs. */
+export const stillPath = (plate: Plate) => plate.src;
 
-  ground(ctx, plate.ground);
-  ctx.save();
-  ctx.globalAlpha = 0.92;
-  SKETCHES[plate.sketch](ctx, plate.ground);
-  ctx.restore();
-  ctx.fillStyle = SHADE;
-  ctx.globalCompositeOperation = "multiply";
-  ctx.globalAlpha = 0.06;
-  ctx.fillRect(0, 0, PLATE_W, PLATE_H);
-  ctx.globalCompositeOperation = "source-over";
-  ctx.globalAlpha = 1;
-  weave(ctx);
-  vignette(ctx);
+/** Where this plate's frame sequence belongs, if it is to have one. */
+export const framesPath = (plate: Plate) =>
+  plate.film ? `/strawberry/frames/${plate.film}/000.webp ...` : "(no sequence yet)";
+
+/**
+ * Paints the slot marker for a plate.
+ *
+ * Deliberately plain, and deliberately not a picture. The procedural stand-in
+ * that used to live here painted a passable curtain or pear, which reads as
+ * artwork and invites you to judge it as artwork. This reads as an empty slot
+ * with a label on it, which is what it is - the ground colour the chapter is
+ * designed around, and the two paths the files go at.
+ */
+export function paintPlate(plate: Plate): HTMLCanvasElement {
+  const W = 1280;
+  const H = 720;
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const g = c.getContext("2d")!;
+
+  g.fillStyle = plate.tone;
+  g.fillRect(0, 0, W, H);
+
+  const light = GROUNDS[plate.ground].ink === "cream";
+  const line = light ? "rgba(255,250,234,0.40)" : "rgba(29,28,25,0.40)";
+  const text = light ? "rgba(255,250,234,0.88)" : "rgba(29,28,25,0.88)";
+  const dim = light ? "rgba(255,250,234,0.52)" : "rgba(29,28,25,0.52)";
+
+  g.strokeStyle = line;
+  g.lineWidth = 2;
+  g.setLineDash([14, 12]);
+  g.strokeRect(40, 40, W - 80, H - 80);
+  g.setLineDash([]);
+
+  // a cross through the frame, so the slot's centre and extent are obvious
+  g.globalAlpha = 0.22;
+  g.beginPath();
+  g.moveTo(40, 40);
+  g.lineTo(W - 40, H - 40);
+  g.moveTo(W - 40, 40);
+  g.lineTo(40, H - 40);
+  g.stroke();
+  g.globalAlpha = 1;
+
+  const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
+  g.textAlign = "center";
+  g.fillStyle = text;
+  g.font = `600 40px ${mono}`;
+  g.fillText(plate.id.toUpperCase(), W / 2, H / 2 - 46);
+
+  g.fillStyle = dim;
+  g.font = `400 22px ${mono}`;
+  g.fillText(stillPath(plate), W / 2, H / 2 + 6);
+  g.fillText(framesPath(plate), W / 2, H / 2 + 40);
+
+  g.font = `400 18px ${mono}`;
+  g.fillText(`ground ${plate.ground} - ${plate.tone}`, W / 2, H / 2 + 84);
+
   return c;
 }
 
 /**
- * Resolves a plate to something the renderer can upload as a texture.
+ * Whether there is any artwork to fetch.
  *
- * The real file wins whenever it decodes. A missing file is the expected case
- * right now, not an error, so a failed load is silent and the stand-in stands in.
+ * False while `public/strawberry/art/` is empty. Without it every plate asks
+ * for a file that is not there and the console fills with 404s on every load -
+ * harmless, since the marker is drawn either way, but it reads as a broken site
+ * rather than an empty one.
+ *
+ * Flip this to `true` the moment the stills go in. It is the only line that
+ * needs to change.
+ */
+export const HAS_ART = false;
+
+/**
+ * The image for a plate: the still if there is one, the slot marker if not.
  */
 export async function loadPlate(plate: Plate): Promise<TexImageSource> {
+  if (!HAS_ART) return paintPlate(plate);
   try {
     const img = new Image();
     img.crossOrigin = "anonymous";

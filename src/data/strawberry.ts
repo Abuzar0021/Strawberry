@@ -85,42 +85,20 @@ export type Plate = {
 };
 
 /**
- * How many frames each sequence has.
+ * How many frames each sequence has, keyed by its folder under
+ * `/strawberry/frames/`.
  *
- * Chosen so that consecutive frames differ by the same amount everywhere,
- * rather than so they are the same distance apart in scroll.
+ * Empty: there is no artwork in this repo. With no entry for a plate the loader
+ * asks for no frames at all, so the stage runs on the stills - and with nothing
+ * at those paths either, `loadPlate` falls through to the slot marker. The
+ * whole site scrolls, dissolves and reads with `public/` empty.
  *
- * Sampling at a constant frame rate maps scroll to the source's timecode, and
- * these clips do not move at a constant rate: one of the bridges sits nearly
- * still for a third of its length and then whips, so at an even sample it
- * showed a run of steps eleven times its own median. That is what reads as a
- * cut. Frames are picked along each clip's cumulative-change curve instead, so
- * equal scroll buys equal movement - dead time in the footage is compressed
- * away and fast passages get the frames they need.
- *
- * The counts below follow from one number, a step of 3.6, applied to every
- * clip. What is left is source-limited: a single frame-to-frame jump larger
- * than the step cannot be subdivided by any sampling, and the two that remain
- * sit inside a bridge's crossfade ramp.
- *
- * The opening chapter is the exception and carries every frame its source has.
- * It is the first thing anyone sees, and at 640px its frames are the smallest
- * on the site - going from 142 to all 192 cost four hundred kilobytes.
+ * To bring a chapter to life: drop `000.webp...` into
+ * `/strawberry/frames/<name>/` and the same again under `<name>/hi/` for the
+ * sharp tier, set that name as the plate's `film` below, and add its count
+ * here. No code changes.
  */
-export const FRAMES: Record<string, number> = {
-  "apply-sapling": 39,
-  "bridge-cut-to-work": 96,
-  "bridge-orbit-to-canopy": 156,
-  "bridge-work-to-orbit": 110,
-  "faq-canopy": 83,
-  "footer-grove": 60,
-  "hero-curtain": 192,
-  "model-cut": 47,
-  "model-graft": 116,
-  "model-ladder": 55,
-  "terms-orbit": 33,
-  "work-pear": 48,
-};
+export const FRAMES: Record<string, number> = {};
 
 export const PLATES: Plate[] = [
   {
