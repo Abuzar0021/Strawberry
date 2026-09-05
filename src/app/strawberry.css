@@ -464,9 +464,11 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid var(--cream);
+  outline: 1px solid var(--cream);
   outline-offset: 3px;
-  border-radius: 2px;
+  /* rounded.sm. The system's tightest corner is 3px and the guide is explicit
+     that nothing below it should be invented, focus ring included. */
+  border-radius: 3px;
 }
 [data-ink="ink"] :focus-visible {
   outline-color: var(--press);
@@ -575,7 +577,8 @@ body {
 .field {
   position: relative;
   display: block;
-  border-radius: 4px;
+  /* rounded.sm - inputs are the one container the guide pins to 3px */
+  border-radius: 3px;
   background: rgb(7 24 52 / 0.78);
   border: 1px solid rgb(255 255 255 / 0.2);
   transition: background 0.35s var(--ease), border-color 0.35s var(--ease);
