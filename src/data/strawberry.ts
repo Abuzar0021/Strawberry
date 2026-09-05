@@ -88,17 +88,25 @@ export type Plate = {
  * How many frames each sequence has, keyed by its folder under
  * `/strawberry/frames/`.
  *
- * Empty: there is no artwork in this repo. With no entry for a plate the loader
- * asks for no frames at all, so the stage runs on the stills - and with nothing
- * at those paths either, `loadPlate` falls through to the slot marker. The
- * whole site scrolls, dissolves and reads with `public/` empty.
- *
- * To bring a chapter to life: drop `000.webp...` into
- * `/strawberry/frames/<name>/` and the same again under `<name>/hi/` for the
- * sharp tier, set that name as the plate's `film` below, and add its count
- * here. No code changes.
+ * Counts follow each chapter's share of the runway at roughly forty pixels of
+ * scroll per frame, and every one is sampled evenly in time - so a clip keeps
+ * the pace it was generated at rather than being retimed to move a constant
+ * amount per pixel.
  */
-export const FRAMES: Record<string, number> = {};
+export const FRAMES: Record<string, number> = {
+  "apply-sapling": 45,
+  "bridge-cut-to-work": 141,
+  "bridge-terms-to-faq": 141,
+  "bridge-work-to-terms": 94,
+  "faq-canopy": 113,
+  "footer-plinth": 50,
+  "hero-curtain": 162,
+  "model-cut": 81,
+  "model-graft": 81,
+  "model-ladder": 62,
+  "terms-gild": 65,
+  "work-halftone": 75,
+};
 
 export const PLATES: Plate[] = [
   {
@@ -106,7 +114,7 @@ export const PLATES: Plate[] = [
     src: "/strawberry/art/hero-curtain.webp",
     film: "hero-curtain",
     ground: "cobalt",
-    tone: "#1a5380",
+    tone: "#1f5279",
     sketch: "curtain",
     alt: "A figure in classical dress stepping out from behind a heavy curtain.",
   },
@@ -115,7 +123,7 @@ export const PLATES: Plate[] = [
     src: "/strawberry/art/model-graft.webp",
     film: "model-graft",
     ground: "bone",
-    tone: "#d4d1c2",
+    tone: "#d3cec0",
     sketch: "graft",
     alt: "Two hands pegging a strawberry runner into the soil with a wooden pin.",
   },
@@ -123,8 +131,8 @@ export const PLATES: Plate[] = [
     id: "ladder",
     src: "/strawberry/art/model-ladder.webp",
     film: "model-ladder",
-    ground: "bone",
-    tone: "#c2b7a2",
+    ground: "cobalt",
+    tone: "#12598a",
     sketch: "ladder",
     alt: "A figure raised on a stone plinth above a crowd of onlookers.",
   },
@@ -133,25 +141,25 @@ export const PLATES: Plate[] = [
     src: "/strawberry/art/model-cut.webp",
     film: "model-cut",
     ground: "bone",
-    tone: "#c8c5b1",
+    tone: "#c9c1af",
     sketch: "cut",
     alt: "A figure in a green velvet robe holding a knife to a gilded strawberry.",
   },
   {
     id: "halftone-pear",
-    src: "/strawberry/art/work-pear.webp",
-    film: "work-pear",
+    src: "/strawberry/art/work-halftone.webp",
+    film: "work-halftone",
     ground: "cobalt",
-    tone: "#094777",
+    tone: "#0c4d7d",
     sketch: "halftone-pear",
     alt: "A strawberry rendered as a coarse printing halftone against a blue ground.",
   },
   {
     id: "orbit",
-    src: "/strawberry/art/terms-orbit.webp",
-    film: "terms-orbit",
+    src: "/strawberry/art/terms-gild.webp",
+    film: "terms-gild",
     ground: "azure",
-    tone: "#236f8a",
+    tone: "#236e8b",
     sketch: "orbit",
     alt: "A gilded strawberry suspended in a ring of light.",
   },
@@ -160,7 +168,7 @@ export const PLATES: Plate[] = [
     src: "/strawberry/art/faq-canopy.webp",
     film: "faq-canopy",
     ground: "cobalt",
-    tone: "#14568b",
+    tone: "#464225",
     sketch: "canopy",
     alt: "Looking up through strawberry foliage into an open circle of sky.",
   },
@@ -169,16 +177,16 @@ export const PLATES: Plate[] = [
     src: "/strawberry/art/apply-sapling.webp",
     film: "apply-sapling",
     ground: "night",
-    tone: "#10304c",
+    tone: "#10324d",
     sketch: "sapling",
     alt: "A young strawberry plant beneath a constellation.",
   },
   {
     id: "grove",
-    src: "/strawberry/art/footer-grove.webp",
-    film: "footer-grove",
-    ground: "cobalt",
-    tone: "#10598b",
+    src: "/strawberry/art/footer-plinth.webp",
+    film: "footer-plinth",
+    ground: "bone",
+    tone: "#bcb5a0",
     sketch: "grove",
     alt: "Two figures tending a bed of bearing strawberry plants.",
   },
@@ -214,9 +222,9 @@ export const PLATE_CUES: {
   // the gilded fruit turns into the printed one, in place
   { at: 0.395, plate: "halftone-pear", via: "bridge", bridge: "bridge-cut-to-work" },
   // the dots close back up into solid gold
-  { at: 0.545, plate: "orbit", via: "bridge", bridge: "bridge-work-to-orbit" },
+  { at: 0.545, plate: "orbit", via: "bridge", bridge: "bridge-work-to-terms" },
   // one fruit recedes and becomes one of many
-  { at: 0.722, plate: "canopy", via: "bridge", bridge: "bridge-orbit-to-canopy" },
+  { at: 0.722, plate: "canopy", via: "bridge", bridge: "bridge-terms-to-faq" },
   // daylight canopy into the night sky of the application
   { at: 0.862, plate: "sapling", via: "iris" },
   { at: 0.938, plate: "grove" },
