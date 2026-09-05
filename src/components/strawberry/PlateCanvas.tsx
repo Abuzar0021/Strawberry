@@ -184,31 +184,25 @@ export function PlateCanvas({ onUnavailable }: { onUnavailable: () => void }) {
       probe.playhead = p;
       const c = cueAt(p);
 
-      /* Parallax is blended between the outgoing segment and the incoming one
-         across a handover. Each segment pushes in and drifts the opposite way
-         to the one before, but `seg` resets 1 -> 0 at every boundary and the
-         direction flips at the same instant, so reading either directly puts a
-         hard jump in zoom and pan exactly where the eye is already being asked
-         to accept a new plate. */
-      const camera = (segv: number, idx: number) => {
-        const dir = idx % 2 === 0 ? 1 : -1;
-        return {
-          zoom: 1.075 - segv * 0.055,
-          panX: (segv - 0.5) * 0.05 * dir,
-          panY: (segv - 0.5) * 0.03,
-        };
-      };
-      const a = camera(c.seg, c.segIndex);
-      const b = camera(c.segTo, c.segIndexTo);
-      const k = c.mix;
-      const lerp = (x: number, y: number) => x + (y - x) * k;
+      /* No camera move.
+         There used to be a push-in and a drift here, blended across handovers.
+         It was a mistake on artwork that already carries its own motion: at
+         zoom 1.075 with the pan at full travel the stage was showing about 78%
+         of the picture and sliding that window around, so a frame composed with
+         the figure standing clear on her ledge got blown up, pushed into the
+         left edge and cut off at the feet. The plates are cover-fitted and left
+         alone now - the only crop is the one a 16:9 frame cannot avoid in a
+         16:10 viewport, and the only movement is the movement that was filmed. */
+      const camera = () => ({ zoom: 1, panX: 0, panY: 0 });
+
+      const cam = camera();
 
       state = {
         from: c.from,
         to: c.to,
         mix: c.mix,
-        zoom: lerp(a.zoom, b.zoom),
-        pan: [lerp(a.panX, b.panX), lerp(a.panY, b.panY)] as [number, number],
+        zoom: cam.zoom,
+        pan: [cam.panX, cam.panY] as [number, number],
         // the screen coarsens as the dissolve peaks, which is what sells it as
         // a printing plate rather than a crossfade
         cell: 7 + Math.sin(Math.min(1, c.mix) * Math.PI) * 9,

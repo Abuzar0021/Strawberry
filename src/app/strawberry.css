@@ -119,16 +119,21 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  /* Light. The plates are cover-fitted and no longer zoomed into, so each one
+     shows the flat field it was composed with and the copy has somewhere to sit
+     without being helped. A heavier wash here reads as a vignette down the edge
+     of every chapter and takes the flatness out of the ground colour, which is
+     the thing holding the chapters together. */
   background:
-    linear-gradient(96deg, rgb(4 10 20 / 0.5) 0%, rgb(4 10 20 / 0.26) 34%, rgb(4 10 20 / 0) 62%),
-    linear-gradient(rgb(4 10 20 / 0.32) 0%, rgb(4 10 20 / 0) 22%);
+    linear-gradient(96deg, rgb(4 10 20 / 0.26) 0%, rgb(4 10 20 / 0.12) 34%, rgb(4 10 20 / 0) 58%),
+    linear-gradient(rgb(4 10 20 / 0.18) 0%, rgb(4 10 20 / 0) 20%);
 }
 
 /* A chapter that sets its type in ink needs the opposite wash. */
 [data-ink="ink"] .scrim {
   background:
-    linear-gradient(96deg, rgb(244 242 233 / 0.56) 0%, rgb(244 242 233 / 0.3) 34%, rgb(244 242 233 / 0) 62%),
-    linear-gradient(rgb(244 242 233 / 0.34) 0%, rgb(244 242 233 / 0) 22%);
+    linear-gradient(96deg, rgb(244 242 233 / 0.3) 0%, rgb(244 242 233 / 0.14) 34%, rgb(244 242 233 / 0) 58%),
+    linear-gradient(rgb(244 242 233 / 0.2) 0%, rgb(244 242 233 / 0) 20%);
 }
 
 @media (max-width: 767px) {
