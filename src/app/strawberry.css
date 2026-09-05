@@ -18,46 +18,95 @@
 }
 
 :root {
-  /* Ink. Interactive accents are Ink Black; anything you actually read is
-     Espresso Brown, which is warmer and sits better on parchment. */
-  --press: #0b0a09;
-  --ink: #2e2109;
-  --ink-soft: #2e2109;
-  /* Depth is a surface swap, never a shadow: cream is the ground, paper is the
-     one step down from it, and that is the whole elevation scale. */
-  --paper: #f2f1ed;
-  --cream: #fffaea;
+  /* ---- colour -----------------------------------------------------------
+     One interactive hue and nothing else. Ink Black is the only colour any
+     control is ever painted in; everything below it is either a surface or a
+     grade of reading ink. */
+  --primary: #0b0a09;
+  --on-primary: #ffffff;
+  --ink: #000000;
+  --ink-secondary: #1d1c19;
+  --text-muted: #2e2109;
 
-  /* grounds - these match the plate edges in src/lib/pearPlates.ts */
+  /* Parchment is the canvas, warm grey is the one step down from it, and that
+     pair is the entire elevation vocabulary - there are no shadows. */
+  --surface: #fffaea;
+  --surface-muted: #f2f1ed;
+  --surface-white: #ffffff;
+
+  /* Names the rest of the stylesheet already speaks, pointed at the tokens
+     above so there is one source of truth rather than two. */
+  --press: var(--primary);
+  --cream: var(--surface);
+  --paper: var(--surface-muted);
+  --ink-soft: var(--text-muted);
+
+  /* Grounds measured off the artwork. Not part of the palette and never used
+     for a control - they exist so copy knows whether it is setting on a light
+     plate or a dark one. */
   --cobalt: #0a5f9e;
   --azure: #0b7baa;
   --bone: #dcdcd2;
   --night: #073568;
-
   --gold: #c2a365;
 
-  /* The reference build lays everything against a margin at 5.3% and a
-     hairline rule a fixed distance below the top. Both are used by the
-     chapter rail, the header and every copy block, so they are tokens. */
+  /* ---- radius -----------------------------------------------------------
+     Two registers: functional chrome stays crisp between 3 and 5.25px, and
+     anything clickable is a full pill. There is no 0px corner in the system. */
+  --r-sm: 3px;
+  --r-md: 4px;
+  --r-lg: 5.25px;
+  --r-xl: 19.5px;
+  --r-2xl: 22px;
+  --r-pill: 999px;
+
+  /* ---- spacing ----------------------------------------------------------
+     Measured off the rendered page rather than authored, which is why 12.96
+     and 15.84 are not round. Snap to these rather than inventing steps. */
+  --s-xs: 4px;
+  --s-sm: 8px;
+  --s-md: 12.96px;
+  --s-lg: 15.84px;
+  --s-gutter: 14px;
+  --s-xl: 31px;
+  --s-2xl: 31.68px;
+
+  /* ---- type -------------------------------------------------------------
+     The document's sizes are fixed pixels off one desktop capture. They are
+     the ceiling of a clamp here so the scale survives a narrow viewport, and
+     tracking is expressed in em so it holds at every size in that range. */
+  --t-display-xl: clamp(3rem, 8.1vw, 116.784px);
+  --t-display-lg: clamp(2.3rem, 5.4vw, 77.872px);
+  --t-hero: clamp(2.3rem, 5.35vw, 77.1408px);
+  --t-title-lg: clamp(1.25rem, 1.84vw, 26.57px);
+  --t-accent: clamp(1.15rem, 1.68vw, 24.192px);
+  --t-body-lg: clamp(0.9375rem, 1.11vw, 16px);
+  --t-body-sm: clamp(0.875rem, 1.1vw, 15.8px);
+  --t-caption: clamp(0.7rem, 0.84vw, 12.16px);
+  --t-micro: clamp(0.5625rem, 0.66vw, 9.504px);
+
+  --ls-display-xl: -0.024em;
+  --ls-display-lg: -0.02em;
+  --ls-title: -0.02em;
+  --ls-caption: 0.04em;
+  --ls-micro: 0.16em;
+
   --v1: 5.3%;
   --h1: 5.3vw;
   --rule: 76px;
-
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
-
-  /* Set per scene from JS. Copy reads these rather than knowing which
-     chapter it is in. */
-  --fg: var(--cream);
-  --fg-dim: rgb(255 250 234 / 0.72);
-  --hair: rgb(255 255 255 / 0.22);
 }
+
 
 * {
   min-width: 0;
 }
 
 html {
-  background-color: var(--cobalt);
+  /* Parchment is the canvas. It shows wherever the film does not reach - a
+     rubber-band overscroll, the document mode, the moment before WebGL has a
+     context - and it is the colour the page is designed on. */
+  background-color: var(--surface);
   color-scheme: light only;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -66,7 +115,7 @@ html {
 
 body {
   margin: 0;
-  background-color: var(--cobalt);
+  background-color: var(--surface);
   color: var(--fg);
   font-family: var(--font-text);
   font-synthesis-weight: none;
@@ -185,87 +234,93 @@ body {
    ============================================================ */
 
 @layer components {
+  /* display-xl. The largest statement on the site, and the tracking tightens
+     as it grows - the one rule the reference applies across its whole range. */
   .t-display {
     font-family: var(--font-display);
     font-weight: 300;
-    /* tracking tightens as the type grows - the one rule the reference
-       applies consistently across its whole display range */
-    letter-spacing: -0.045em;
-    line-height: 1.04;
-    /* Sized so the opening statement holds one line on a laptop. Newsreader
-       sets wider than the Flecha it stands in for, so matching the reference's
-       ~96px would wrap it, and a two-line "Pear makes you appear." loses the
-       whole gesture. */
-    font-size: clamp(2.6rem, 7.4vw, 9.5rem);
+    font-size: var(--t-display-xl);
+    line-height: 1.05;
+    letter-spacing: var(--ls-display-xl);
     margin: 0;
   }
 
+  /* display-lg */
   .t-beat {
     font-family: var(--font-display);
     font-weight: 300;
-    letter-spacing: -0.02em;
-    line-height: 0.977;
-    font-size: clamp(1.75rem, 3.32vw, 3.75rem);
+    font-size: var(--t-display-lg);
+    line-height: 0.9;
+    letter-spacing: var(--ls-display-lg);
     margin: 0;
   }
 
-  .t-subhead {
-    font-family: var(--font-display);
-    font-weight: 300;
-    letter-spacing: -0.012em;
-    line-height: 1.14;
-    font-size: clamp(0.95rem, 1.68vw, 1.85rem);
-    margin: 0;
-  }
-
-  .t-title {
-    font-family: var(--font-display);
-    font-weight: 400;
-    letter-spacing: -0.02em;
-    line-height: 1.05;
-    font-size: clamp(1.15rem, 1.62vw, 1.6rem);
-    margin: 0;
-  }
-
+  /* hero-display - the closing statement, set without tracking */
   .t-fin {
     font-family: var(--font-display);
     font-weight: 300;
-    letter-spacing: -0.02em;
-    line-height: 0.88;
-    font-size: clamp(1.9rem, 4.05vw, 4.35rem);
+    font-size: var(--t-hero);
+    line-height: 1;
     margin: 0;
   }
 
-  /* Running copy. Short measure, tight leading - it is a caption to the
-     painting, not an essay. */
+  /* accent-italic */
+  .t-subhead {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: var(--t-accent);
+    line-height: 1;
+    margin: 0;
+  }
+
+  /* title-lg */
+  .t-title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: var(--t-title-lg);
+    line-height: 1.15;
+    letter-spacing: var(--ls-title);
+    margin: 0;
+  }
+
+  /* body-lg - the reading size, and the only place espresso is the default */
   .t-stand {
     font-family: var(--font-text);
     font-weight: 400;
-    letter-spacing: -0.005em;
-    line-height: 1.3;
-    font-size: clamp(0.8125rem, 1.068vw, 1.1875rem);
-    max-width: 27.4em;
+    font-size: var(--t-body-lg);
+    line-height: 1.5;
     margin: 0;
     text-wrap: pretty;
   }
 
+  /* body-sm */
   .t-small {
     font-family: var(--font-text);
     font-weight: 400;
-    line-height: 1.42;
-    font-size: clamp(0.75rem, 0.83vw, 0.875rem);
+    font-size: var(--t-body-sm);
+    line-height: 1.25;
     margin: 0;
     text-wrap: pretty;
   }
 
-  /* Mono is for labels only, never for reading. */
+  /* caption - mono at its heaviest, and 500 is the heaviest weight anywhere */
+  .t-caption {
+    font-family: var(--font-code);
+    font-weight: 500;
+    font-size: var(--t-caption);
+    line-height: 1.7;
+    letter-spacing: var(--ls-caption);
+  }
+
+  /* micro. Mono is for labels, never for reading - open tracking is what keeps
+     it legible at this size, and it is capped at weight 400. */
   .t-mono {
     font-family: var(--font-code);
     font-weight: 400;
     text-transform: uppercase;
-    letter-spacing: 0.16em;
-    font-size: clamp(0.5625rem, 0.66vw, 0.75rem);
+    font-size: var(--t-micro);
     line-height: 1;
+    letter-spacing: var(--ls-micro);
   }
 }
 
@@ -321,12 +376,14 @@ body {
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 1.1em;
-  padding: 0.5em 0.5em 0.5em 1.15em;
-  border-radius: 999px;
-  background: var(--press);
-  color: #fff;
+  gap: var(--s-gutter);
+  /* the document's one measured CTA padding, and the reason the tap target is
+     comfortable without a min-height needing to be bolted on */
+  padding: var(--s-gutter) var(--s-xl);
   border: 0;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  color: var(--on-primary);
   cursor: pointer;
 }
 
@@ -420,15 +477,12 @@ body {
 .chip {
   display: inline-flex;
   align-items: center;
-  height: 19px;
-  padding: 4px 10px 3px 8px;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.16);
-  color: var(--fg);
-  white-space: nowrap;
-  /* A chip is a label, not a bar. Where the copy column is a flex column - which
-     it becomes on a handheld - the default stretch pulled it edge to edge. */
   align-self: start;
+  padding: var(--s-xs) var(--s-sm);
+  border-radius: var(--r-pill);
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 [data-ink="ink"] .chip {
   background: rgb(29 28 25 / 0.09);
@@ -437,30 +491,23 @@ body {
 .cta {
   display: inline-flex;
   align-items: center;
-  gap: clamp(10px, 1.1vw, 20px);
-  padding: clamp(4px, 0.28vw, 5px) clamp(4px, 0.28vw, 5px) clamp(4px, 0.28vw, 5px)
-    clamp(10px, 0.9vw, 17px);
-  border: 0;
-  border-radius: 999px;
-  background: var(--paper);
-  color: var(--ink);
+  gap: var(--s-gutter);
+  padding: var(--s-gutter) var(--s-xl);
+  border: 1px solid var(--primary);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--primary);
   cursor: pointer;
   white-space: nowrap;
   position: relative;
   overflow: hidden;
+  transition: background-color 0.3s var(--ease), color 0.3s var(--ease);
 }
 /* A wash crosses the face on hover instead of the button changing colour -
    nothing on this site has a hover state that swaps a fill. */
-.cta::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: var(--cream);
-  transform: translateX(-110%);
-  transition: transform 0.7s var(--ease);
-}
-.cta:hover::after {
-  transform: translateX(110%);
+.cta:hover {
+  background: var(--primary);
+  color: var(--on-primary);
 }
 
 :focus-visible {
@@ -577,11 +624,10 @@ body {
 .field {
   position: relative;
   display: block;
-  /* rounded.sm - inputs are the one container the guide pins to 3px */
-  border-radius: 3px;
-  background: rgb(7 24 52 / 0.78);
-  border: 1px solid rgb(255 255 255 / 0.2);
-  transition: background 0.35s var(--ease), border-color 0.35s var(--ease);
+  border: 1px solid var(--surface-muted);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  transition: border-color 0.3s var(--ease);
 }
 .field:focus-within {
   background: rgb(7 24 52 / 0.84);
@@ -591,7 +637,7 @@ body {
   width: 100%;
   border: 0;
   background: none;
-  color: var(--cream);
+  color: var(--ink);
   font-family: var(--font-text);
   font-size: 0.875rem;
   line-height: 1.45;
@@ -604,7 +650,7 @@ body {
 }
 .field input::placeholder,
 .field textarea::placeholder {
-  color: rgb(255 250 234 / 0.72);
+  color: var(--text-muted);
 }
 .field textarea {
   border-radius: 4px;
@@ -948,11 +994,11 @@ body {
 }
 
 .card {
-  background: var(--paper);
-  border: 1px solid rgb(11 10 9 / 0.14);
-  border-radius: 4px;
-  padding: 31px;
-  color: var(--ink);
+  background: var(--surface-muted);
+  border: 1px solid rgb(11 10 9 / 0.12);
+  border-radius: var(--r-md);
+  padding: var(--s-xl);
+  color: var(--text-muted);
   will-change: transform, opacity;
   pointer-events: auto;
 }
